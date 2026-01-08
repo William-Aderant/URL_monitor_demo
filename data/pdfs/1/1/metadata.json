@@ -1,0 +1,17 @@
+{
+  "url": "https://www.courts.ca.gov/documents/cm010.pdf",
+  "version_number": 1,
+  "pdf_hash": "350fde3a554ac5436930427830d68ad4535f6f3345a2af2f79b18326fe00de3b",
+  "text_hash": "493cbe1fe9f07ad43c5651ed9f6cd76b49a5ba5cd5b07bb33aafb11af94dd359",
+  "page_hashes": [
+    "c0287cad7c10edbc3f1a87d45fc0b5818b628df61a17f93049f85887b2c2892f",
+    "1a52ea4b6d7a2688f0a699ccb3f48db4200eb87cc5e7a56340d024ad54e8b714",
+    "3257f9850cf5a4a9d3db1ba3c4d12cabd1b2418703f593e98579a6bc665c353c"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 10993,
+  "file_size": 256914,
+  "stored_at": "2026-01-08T15:53:27.634021"
+}

@@ -1,0 +1,16 @@
+{
+  "url": "https://www.courts.ca.gov/documents/pos010.pdf",
+  "version_number": 1,
+  "pdf_hash": "f0ec5a7737b829046dfce67bcd00b4901adf501f957020cda23388b1e27fc7f6",
+  "text_hash": "62ab7ab4daebf0bebe86c2a6f1189682d132190268ef26f80dd73ec82daaa843",
+  "page_hashes": [
+    "b669d1459291f6439c4cfdbdd7e9d204f0d2692a97aec57a6bbc1b2f8e771005",
+    "9b6735a481d8a713b985b19c94dc847116dc9cbd1e2683235027ec0b9f479234"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 4673,
+  "file_size": 187751,
+  "stored_at": "2026-01-08T15:53:28.165696"
+}

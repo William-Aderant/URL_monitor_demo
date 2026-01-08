@@ -1,0 +1,15 @@
+{
+  "url": "https://www.courts.ca.gov/documents/sum100.pdf",
+  "version_number": 1,
+  "pdf_hash": "115a9c638ab6248ba9689742ced85b8ef40dece218d3254ac1b49b8d6810a183",
+  "text_hash": "b92713b315ee4b7407204dda787f722d7d4670657ce20db397052a66d931029e",
+  "page_hashes": [
+    "b92713b315ee4b7407204dda787f722d7d4670657ce20db397052a66d931029e"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 5049,
+  "file_size": 79537,
+  "stored_at": "2026-01-08T15:53:27.920342"
+}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ url.name }} - PDF Monitor{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="/" class="btn btn-secondary btn-sm">← Back to Dashboard</a>
+</div>
+
+<h1>{{ url.name }}</h1>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+        <div>
+            <div class="card-title">URL Details</div>
+            <div class="card-subtitle">
+                <a href="{{ url.url }}" target="_blank" class="url-link">{{ url.url }}</a>
+            </div>
+        </div>
+        <div>
+            {% if url.enabled %}
+                <span class="badge badge-success">Enabled</span>
+            {% else %}
+                <span class="badge badge-neutral">Disabled</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if url.description %}
+    <p style="color: var(--text-secondary); margin-bottom: 16px;">{{ url.description }}</p>
+    {% endif %}
+    
+    <div class="stats-grid" style="margin-bottom: 0;">
+        <div class="stat-card">
+            <div class="stat-value">{{ versions|length }}</div>
+            <div class="stat-label">Versions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ changes|length }}</div>
+            <div class="stat-label">Changes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">
+                {% if url.last_checked_at %}
+                    {{ url.last_checked_at.strftime('%m/%d %H:%M') }}
+                {% else %}
+                    Never
+                {% endif %}
+            </div>
+            <div class="stat-label">Last Checked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ url.check_interval_hours }}h</div>
+            <div class="stat-label">Check Interval</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div>
+        <h2>Version History</h2>
+        
+        {% if versions %}
+        <div class="card">
+            <div class="version-timeline">
+                {% for version in versions %}
+                <div class="version-item {% if loop.last %}first{% endif %}">
+                    <div class="card-title">Version {{ version.version_number }}</div>
+                    <div class="card-subtitle">
+                        {{ version.fetched_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
+                        <span>{{ version.page_count or 0 }} pages</span>
+                        <span style="margin: 0 8px;">•</span>
+                        <span>{{ version.text_length or 0 }} chars</span>
+                        <span style="margin: 0 8px;">•</span>
+                        <span>{{ version.extraction_method }}</span>
+                        {% if version.ocr_used %}
+                            <span class="badge badge-warning" style="margin-left: 8px;">OCR</span>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf" class="btn btn-secondary btn-sm" target="_blank">
+                            Original PDF
+                        </a>
+                        <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf?normalized=true" class="btn btn-secondary btn-sm" target="_blank">
+                            Normalized PDF
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty-state">
+                <div class="empty-state-icon">📄</div>
+                <p>No versions yet. Run a monitoring cycle to fetch the first version.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div>
+        <h2>Change Log</h2>
+        
+        {% if changes %}
+        <div class="card">
+            {% for change in changes %}
+            <div style="{% if not loop.last %}border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 16px;{% endif %}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <span class="badge {% if change.change_type == 'new' %}badge-info{% elif change.change_type == 'text_changed' %}badge-warning{% else %}badge-neutral{% endif %}">
+                            {{ change.change_type }}
+                        </span>
+                    </div>
+                    <div class="timestamp">{{ change.detected_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                
+                {% if change.affected_pages %}
+                <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
+                    Affected pages: {{ change.affected_pages|join(', ') }}
+                </div>
+                {% endif %}
+                
+                {% if change.diff_summary %}
+                <div class="diff-preview" style="margin-top: 12px;">{{ change.diff_summary[:500] }}{% if change.diff_summary|length > 500 %}...{% endif %}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <p>No changes detected yet.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

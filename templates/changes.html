@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Changes - PDF Monitor{% endblock %}
+
+{% block content %}
+<h1>Recent Changes</h1>
+
+{% if changes %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Change Type</th>
+                <th>Affected Pages</th>
+                <th>Detected</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in changes %}
+            <tr>
+                <td>
+                    <div class="card-title">{{ item.url_name }}</div>
+                </td>
+                <td>
+                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'binary_changed' %}badge-neutral{% else %}badge-success{% endif %}">
+                        {{ item.change.change_type }}
+                    </span>
+                </td>
+                <td>
+                    {% if item.change.affected_pages %}
+                        {{ item.change.affected_pages|join(', ') }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="timestamp">{{ item.change.detected_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </td>
+                <td>
+                    <a href="/url/{{ item.change.monitored_url_id }}" class="btn btn-secondary btn-sm">View URL</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <h2>No Changes Yet</h2>
+        <p>Run a monitoring cycle to start detecting changes.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

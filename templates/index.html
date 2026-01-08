@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - PDF Monitor{% endblock %}
+
+{% block content %}
+<h1>Monitored URLs</h1>
+
+{% if urls %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ urls|length }}</div>
+        <div class="stat-label">Total URLs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ urls|selectattr('url.enabled')|list|length }}</div>
+        <div class="stat-label">Enabled</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ urls|sum(attribute='version_count') }}</div>
+        <div class="stat-label">Total Versions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ urls|selectattr('recent_change')|list|length }}</div>
+        <div class="stat-label">With Changes</div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Versions</th>
+                <th>Last Checked</th>
+                <th>Last Change</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in urls %}
+            <tr>
+                <td>
+                    <div class="card-title">{{ item.url.name }}</div>
+                    <div class="card-subtitle">
+                        <a href="{{ item.url.url }}" target="_blank" class="url-link">{{ item.url.url[:60] }}{% if item.url.url|length > 60 %}...{% endif %}</a>
+                    </div>
+                </td>
+                <td>
+                    {% if item.url.enabled %}
+                        {% if item.recent_change and item.recent_change.change_type != 'new' %}
+                            <span class="badge badge-warning">Changed</span>
+                        {% elif item.version_count > 0 %}
+                            <span class="badge badge-success">Unchanged</span>
+                        {% else %}
+                            <span class="badge badge-info">New</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-neutral">Disabled</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.version_count }}</td>
+                <td>
+                    {% if item.url.last_checked_at %}
+                        <span class="timestamp">{{ item.url.last_checked_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% else %}
+                        <span class="timestamp">Never</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.url.last_change_at %}
+                        <span class="timestamp">{{ item.url.last_change_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% else %}
+                        <span class="timestamp">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/url/{{ item.url.id }}" class="btn btn-secondary btn-sm">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h2>No URLs Monitored</h2>
+        <p>Run <code>python cli.py seed</code> to add sample URLs, then <code>python cli.py run</code> to start monitoring.</p>
+    </div>
+</div>
+{% endif %}
+
+<div style="margin-top: 24px;">
+    <form action="/monitor/run" method="post" style="display: inline;">
+        <button type="submit" class="btn btn-primary">
+            ▶ Run Monitoring Cycle
+        </button>
+    </form>
+</div>
+{% endblock %}
+

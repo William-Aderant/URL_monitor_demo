@@ -1,59 +1,23 @@
-SUM-100
-SUMMONS FOR COURT USE ONLY
-(SOLO PARA USO DE LA CORTE)
-(CITACION JUDICIAL)
-NOTICE TO DEFENDANT:
-(AVISO AL DEMANDADO):
-YOU ARE BEING SUED BY PLAINTIFF:
-(LO ESTÁ DEMANDANDO EL DEMANDANTE):
-NOTICE! You have been sued. The court may decide against you without your being heard unless you respond within 30 days. Read the information
-below.
-You have 30 CALENDAR DAYS after this summons and legal papers are served on you to file a written response at this court and have a copy
-served on the plaintiff. A letter or phone call will not protect you. Your written response must be in proper legal form if you want the court to hear your
-case. There may be a court form that you can use for your response. You can find these court forms and more information at the California Courts
-Online Self-Help Center (www.courtinfo.ca.gov/selfhelp), your county law library, or the courthouse nearest you. If you cannot pay the filing fee, ask the
-court clerk for a fee waiver form. If you do not file your response on time, you may lose the case by default, and your wages, money, and property may
-be taken without further warning from the court.
-There are other legal requirements. You may want to call an attorney right away. If you do not know an attorney, you may want to call an attorney
-referral service. If you cannot afford an attorney, you may be eligible for free legal services from a nonprofit legal services program. You can locate
-these nonprofit groups at the California Legal Services Web site (www.lawhelpcalifornia.org), the California Courts Online Self-Help Center
-(www.courtinfo.ca.gov/selfhelp), or by contacting your local court or county bar association. NOTE: The court has a statutory lien for waived fees and
-costs on any settlement or arbitration award of $10,000 or more in a civil case. The court's lien must be paid before the court will dismiss the case.
-¡AVISO! Lo han demandado. Si no responde dentro de 30 días, la corte puede decidir en su contra sin escuchar su versión. Lea la información a
-continuación.
-Tiene 30 DÍAS DE CALENDARIO después de que le entreguen esta citación y papeles legales para presentar una respuesta por escrito en esta
-corte y hacer que se entregue una copia al demandante. Una carta o una llamada telefónica no lo protegen. Su respuesta por escrito tiene que estar
-en formato legal correcto si desea que procesen su caso en la corte. Es posible que haya un formulario que usted pueda usar para su respuesta.
-Puede encontrar estos formularios de la corte y más información en el Centro de Ayuda de las Cortes de California (www.sucorte.ca.gov), en la
-biblioteca de leyes de su condado o en la corte que le quede más cerca. Si no puede pagar la cuota de presentación, pida al secretario de la corte que
-le dé un formulario de exención de pago de cuotas. Si no presenta su respuesta a tiempo, puede perder el caso por incumplimiento y la corte le podrá
-quitar su sueldo, dinero y bienes sin más advertencia.
-Hay otros requisitos legales. Es recomendable que llame a un abogado inmediatamente. Si no conoce a un abogado, puede llamar a un servicio de
-remisión a abogados. Si no puede pagar a un abogado, es posible que cumpla con los requisitos para obtener servicios legales gratuitos de un
-programa de servicios legales sin fines de lucro. Puede encontrar estos grupos sin fines de lucro en el sitio web de California Legal Services,
-(www.lawhelpcalifornia.org), en el Centro de Ayuda de las Cortes de California, (www.sucorte.ca.gov) o poniéndose en contacto con la corte o el
-colegio de abogados locales. AVISO: Por ley, la corte tiene derecho a reclamar las cuotas y los costos exentos por imponer un gravamen sobre
-cualquier recuperación de $10,000 ó más de valor recibida mediante un acuerdo o una concesión de arbitraje en un caso de derecho civil. Tiene que
-pagar el gravamen de la corte antes de que la corte pueda desechar el caso.
-The name and address of the court is: CASE NUMBER:
-(Número del Caso):
-(El nombre y dirección de la corte es):
-The name, address, and telephone number of plaintiff's attorney, or plaintiff without an attorney, is:
-(El nombre, la dirección y el número de teléfono del abogado del demandante, o del demandante que no tiene abogado, es):
-DATE: Clerk, by , Deputy
-(Fecha) (Secretario) (Adjunto)
-(For proof of service of this summons, use Proof of Service of Summons (form POS-010).)
-(Para prueba de entrega de esta citatión use el formulario Proof of Service of Summons, (POS-010)).
-[SEAL] NOTICE TO THE PERSON SERVED: You are served
-1. as an individual defendant.
-2. a s t h e p e r s o n s u e d u n d e r t h e f i c t i t io u s n a m e o f (specify):
-3. on behalf of (specify):
-under: CCP 416.10 (corporation) CCP 416.60 (minor)
-CCP 416.20 (defunct corporation) CCP 416.70 (conservatee)
-CCP 416.40 (association or partnership) CCP 416.90 (authorized person)
-other (specify):
-4. by personal delivery on (date):
-Page 1 of 1
-Form Adopted for Mandatory Use SUMMONS Code of Civil Procedure §§ 412.20, 465
-Judicial Council of California
-SUM-100 [Rev. July 1, 2009]
+Form CIV-002 Rev. 01/12/2026
+PETITION FOR CUSTODY
+SUPERIOR COURT OF THE STATE OF ALASKA
+MICHAEL DAVIS, Case No: 2026-CV-002
+Plaintiff,
+PETITION FOR CUSTODY
+v.
+SARAH DAVIS,
+INTRODUCTION
+Petitioner Michael Davis hereby petitions this Court for primary custody of the minor children.
+BACKGROUND
+The parties were married on June 15, 2015, and have two minor children: Emma (age 8) and Jacob (age
+5).
+CUSTODY FACTORS
+Petitioner is the primary caregiver and has provided a stable home environment for the children.
+BEST INTERESTS
+It is in the best interests of the children to remain in Petitioner's primary custody.
+RELIEF REQUESTED
+Petitioner requests that this Court grant primary physical and legal custody of the minor children.
+Respectfully submitted,
+Attorney for Sarah Davis
+Date: January 12, 2026
+Form CIV-002 - Page 1 of 1

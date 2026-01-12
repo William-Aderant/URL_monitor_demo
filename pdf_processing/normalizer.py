@@ -306,3 +306,4 @@ class PDFNormalizer:
         
         return metadata
 
+

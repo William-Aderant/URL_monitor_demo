@@ -38,7 +38,7 @@ logger = structlog.get_logger()
 
 from config import settings
 from db.database import get_db, init_db, SessionLocal
-from db.models import MonitoredURL, PDFVersion
+from db.models import MonitoredURL, PDFVersion, ChangeLog
 from db.migrations import run_migrations, seed_sample_urls
 from fetcher.firecrawl_client import FirecrawlClient
 from fetcher.pdf_downloader import PDFDownloader
@@ -48,6 +48,10 @@ from pdf_processing.ocr_fallback import OCRFallback
 from diffing.hasher import Hasher
 from diffing.change_detector import ChangeDetector
 from storage.version_manager import VersionManager
+from services.title_extractor import TitleExtractor
+from services.link_crawler import LinkCrawler
+from services.form_matcher import FormMatcher, MatchType
+from services.visual_diff import VisualDiff
 
 
 class MonitoringOrchestrator:
@@ -73,6 +77,12 @@ class MonitoringOrchestrator:
         self.hasher = Hasher()
         self.change_detector = ChangeDetector()
         self.version_manager = VersionManager()
+        self.title_extractor = TitleExtractor()
+        
+        # Enhanced change detection services
+        self.link_crawler = LinkCrawler()
+        self.form_matcher = FormMatcher()
+        self.visual_diff = VisualDiff()
         
         logger.info("MonitoringOrchestrator initialized")
     
@@ -99,6 +109,8 @@ class MonitoringOrchestrator:
             name=monitored_url.name,
             url=monitored_url.url
         )
+        
+        relocated_from_url = None  # Track if form was found at different URL
         
         try:
             # Step 1: Fetch PDF
@@ -131,13 +143,51 @@ class MonitoringOrchestrator:
                 
                 download_result = self.downloader.download(pdf_url, original_pdf)
                 
+                # Step 1b: If download fails, try to find relocated form
                 if not download_result.success:
-                    logger.error(
-                        "Failed to download PDF",
+                    logger.warning(
+                        "Download failed, checking for relocated form",
                         url=pdf_url,
                         error=download_result.error
                     )
-                    return False
+                    
+                    # Get previous version's form number for matching
+                    previous_version = self.version_manager.get_latest_version(db, monitored_url.id)
+                    form_number = previous_version.form_number if previous_version else None
+                    form_title = previous_version.formatted_title if previous_version else None
+                    
+                    # Try to find relocated form
+                    crawl_result = self.link_crawler.find_relocated_form(
+                        original_url=pdf_url,
+                        form_number=form_number,
+                        form_title=form_title,
+                        parent_url=monitored_url.parent_page_url
+                    )
+                    
+                    if crawl_result.success and crawl_result.matched_url:
+                        logger.info(
+                            "Found relocated form",
+                            new_url=crawl_result.matched_url,
+                            reason=crawl_result.match_reason
+                        )
+                        
+                        # Try downloading from new URL
+                        relocated_from_url = pdf_url
+                        pdf_url = crawl_result.matched_url
+                        download_result = self.downloader.download(pdf_url, original_pdf)
+                        
+                        if download_result.success:
+                            # Update the monitored URL to new location
+                            monitored_url.url = pdf_url
+                            logger.info("Updated monitored URL to new location", new_url=pdf_url)
+                    
+                    if not download_result.success:
+                        logger.error(
+                            "Failed to download PDF",
+                            url=pdf_url,
+                            error=download_result.error
+                        )
+                        return False
                 
                 logger.info(
                     "PDF downloaded",
@@ -234,6 +284,24 @@ class MonitoringOrchestrator:
                     previous_text
                 )
                 
+                # Step 5c: Enhanced form matching
+                match_result = None
+                if previous_version and change_result.changed:
+                    match_result = self.form_matcher.match_forms(
+                        old_text=previous_text,
+                        new_text=extracted_text,
+                        old_form_number=previous_version.form_number,
+                        new_form_number=None,  # Will be extracted below
+                        old_title=previous_version.formatted_title,
+                        new_title=None
+                    )
+                    logger.info(
+                        "Form match result",
+                        match_type=match_result.match_type.value,
+                        similarity=f"{match_result.similarity_score:.1%}",
+                        confidence=f"{match_result.confidence:.1%}"
+                    )
+                
                 # Step 6: Store version if changed or first version
                 if change_result.changed:
                     new_version = self.version_manager.create_version(
@@ -248,8 +316,76 @@ class MonitoringOrchestrator:
                         ocr_used=ocr_used
                     )
                     
-                    # Record change
-                    self.version_manager.record_change(
+                    # Step 6b: Extract title using AWS Textract + Bedrock
+                    if self.title_extractor.is_available():
+                        logger.info("Extracting title with Textract + Bedrock")
+                        preview_path = self.version_manager.file_store.get_preview_image_path(
+                            monitored_url.id, new_version.id
+                        )
+                        title_result = self.title_extractor.extract_title(
+                            normalized_pdf, 
+                            preview_path
+                        )
+                        
+                        if title_result.success:
+                            new_version.formatted_title = title_result.formatted_title
+                            new_version.form_number = title_result.form_number
+                            new_version.title_confidence = title_result.combined_confidence
+                            new_version.title_extraction_method = title_result.extraction_method
+                            new_version.revision_date = title_result.revision_date
+                            db.commit()
+                            
+                            logger.info(
+                                "Title extracted",
+                                title=title_result.formatted_title,
+                                form_number=title_result.form_number,
+                                revision_date=title_result.revision_date,
+                                confidence=title_result.combined_confidence
+                            )
+                        else:
+                            logger.warning(
+                                "Title extraction failed",
+                                error=title_result.error
+                            )
+                    else:
+                        logger.info("AWS credentials not configured, skipping title extraction")
+                    
+                    # Step 6c: Generate visual diff if we have a previous version
+                    diff_image_path = None
+                    if previous_version:
+                        logger.info("Generating visual diff")
+                        
+                        # Get paths to previous version PDFs
+                        prev_normalized = self.version_manager.file_store.get_normalized_pdf(
+                            monitored_url.id, previous_version.id
+                        )
+                        
+                        if prev_normalized:
+                            diff_output = self.version_manager.file_store.get_diff_image_path(
+                                monitored_url.id, new_version.id
+                            )
+                            
+                            diff_result = self.visual_diff.generate_diff(
+                                old_pdf_path=prev_normalized,
+                                new_pdf_path=normalized_pdf,
+                                output_path=diff_output
+                            )
+                            
+                            if diff_result.success:
+                                diff_image_path = str(diff_result.diff_image_path)
+                                logger.info(
+                                    "Visual diff generated",
+                                    change_pct=f"{diff_result.change_percentage:.1%}",
+                                    regions=len(diff_result.changed_regions or [])
+                                )
+                            else:
+                                logger.warning(
+                                    "Visual diff generation failed",
+                                    error=diff_result.error
+                                )
+                    
+                    # Record change with enhanced fields
+                    change_log = self.version_manager.record_change(
                         db=db,
                         monitored_url=monitored_url,
                         previous_version=previous_version,
@@ -257,13 +393,53 @@ class MonitoringOrchestrator:
                         change_result=change_result
                     )
                     
+                    # Update with enhanced change detection fields
+                    if change_log and match_result:
+                        change_log.match_type = match_result.match_type.value
+                        change_log.similarity_score = match_result.similarity_score
+                        
+                    if change_log and relocated_from_url:
+                        change_log.relocated_from_url = relocated_from_url
+                        
+                    if change_log and diff_image_path:
+                        change_log.diff_image_path = diff_image_path
+                        
+                    db.commit()
+                    
+                    # Build detailed change summary
+                    change_summary = {
+                        "change_type": change_result.change_type,
+                        "version": new_version.version_number,
+                        "match_type": match_result.match_type.value if match_result else "new",
+                        "similarity": f"{match_result.similarity_score:.1%}" if match_result else "N/A",
+                        "title": new_version.formatted_title,
+                        "form_number": new_version.form_number
+                    }
+                    
                     logger.info(
                         "Change detected and stored",
                         change_type=change_result.change_type,
-                        version=new_version.version_number
+                        version=new_version.version_number,
+                        match_type=match_result.match_type.value if match_result else None
                     )
+                    
+                    # Print user-friendly summary
+                    print(f"\n  📋 CHANGE DETECTED:")
+                    print(f"     Type: {change_result.change_type}")
+                    if match_result:
+                        print(f"     Match: {match_result.match_type.value.replace('_', ' ').title()}")
+                        print(f"     Similarity: {match_result.similarity_score:.1%}")
+                        if match_result.changed_sections:
+                            print(f"     Changed sections: {', '.join(match_result.changed_sections[:5])}")
+                    if new_version.formatted_title:
+                        print(f"     Title: {new_version.formatted_title}")
+                    if new_version.form_number:
+                        print(f"     Form #: {new_version.form_number}")
+                    if relocated_from_url:
+                        print(f"     📍 Relocated from: {relocated_from_url}")
                 else:
                     logger.info("No changes detected")
+                    print(f"\n  ✓ No changes detected")
                 
                 # Update last checked timestamp
                 monitored_url.last_checked_at = datetime.utcnow()
@@ -470,4 +646,5 @@ Examples:
 
 if __name__ == "__main__":
     main()
+
 

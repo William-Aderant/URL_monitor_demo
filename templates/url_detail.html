@@ -65,27 +65,67 @@
             <div class="version-timeline">
                 {% for version in versions %}
                 <div class="version-item {% if loop.last %}first{% endif %}">
-                    <div class="card-title">Version {{ version.version_number }}</div>
-                    <div class="card-subtitle">
-                        {{ version.fetched_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </div>
-                    <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
-                        <span>{{ version.page_count or 0 }} pages</span>
-                        <span style="margin: 0 8px;">•</span>
-                        <span>{{ version.text_length or 0 }} chars</span>
-                        <span style="margin: 0 8px;">•</span>
-                        <span>{{ version.extraction_method }}</span>
-                        {% if version.ocr_used %}
-                            <span class="badge badge-warning" style="margin-left: 8px;">OCR</span>
-                        {% endif %}
-                    </div>
-                    <div style="margin-top: 12px;">
-                        <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf" class="btn btn-secondary btn-sm" target="_blank">
-                            Original PDF
-                        </a>
-                        <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf?normalized=true" class="btn btn-secondary btn-sm" target="_blank">
-                            Normalized PDF
-                        </a>
+                    <div style="display: flex; gap: 16px;">
+                        <!-- Preview Image -->
+                        <div style="flex-shrink: 0;">
+                            <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/preview" target="_blank" title="View full preview">
+                                <img src="/api/urls/{{ url.id }}/versions/{{ version.id }}/preview" 
+                                     alt="Preview" 
+                                     style="width: 80px; height: 104px; object-fit: cover; border: 1px solid var(--border); border-radius: 4px; cursor: zoom-in;"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div style="display: none; width: 80px; height: 104px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; align-items: center; justify-content: center; font-size: 2rem;">📄</div>
+                            </a>
+                        </div>
+                        
+                        <!-- Version Details -->
+                        <div style="flex-grow: 1;">
+                            <div class="card-title">Version {{ version.version_number }}</div>
+                            <div class="card-subtitle">
+                                {{ version.fetched_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </div>
+                            
+                            <!-- Formatted Title (PoC format: "Title {FormNumber}") -->
+                            {% if version.formatted_title %}
+                            <div style="margin-top: 8px; padding: 8px; background: var(--bg-secondary); border-radius: 4px;">
+                                <div style="font-weight: 600; color: var(--text-primary);">
+                                    {{ version.display_title or version.formatted_title }}
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                                    {% if version.revision_date %}
+                                    <span style="margin-right: 8px;">📅 Rev. {{ version.revision_date }}</span>
+                                    {% endif %}
+                                    {% if version.title_confidence %}
+                                    Confidence: {{ (version.title_confidence * 100)|round|int }}%
+                                    {% if version.title_extraction_method %}
+                                    • Extracted via {{ version.title_extraction_method }}
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
+                                <span>{{ version.page_count or 0 }} pages</span>
+                                <span style="margin: 0 8px;">•</span>
+                                <span>{{ version.text_length or 0 }} chars</span>
+                                <span style="margin: 0 8px;">•</span>
+                                <span>{{ version.extraction_method }}</span>
+                                {% if version.ocr_used %}
+                                    <span class="badge badge-warning" style="margin-left: 8px;">OCR</span>
+                                {% endif %}
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf" class="btn btn-secondary btn-sm" target="_blank">
+                                    Original PDF
+                                </a>
+                                <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf?normalized=true" class="btn btn-secondary btn-sm" target="_blank">
+                                    Normalized PDF
+                                </a>
+                                <button onclick="extractTitle({{ url.id }}, {{ version.id }})" class="btn btn-secondary btn-sm" title="Re-extract title using AWS Textract + Bedrock">
+                                    🔄 Extract Title
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -107,15 +147,58 @@
         {% if changes %}
         <div class="card">
             {% for change in changes %}
-            <div style="{% if not loop.last %}border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 16px;{% endif %}">
+            <div class="{% if change.change_type != 'new' %}change-item-changed{% endif %}" style="{% if not loop.last %}border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 16px;{% endif %} {% if change.change_type != 'new' %}background: rgba(255, 255, 0, 0.1); padding: 12px; border-radius: 8px; border-left: 4px solid #ffd700;{% endif %}">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <span class="badge {% if change.change_type == 'new' %}badge-info{% elif change.change_type == 'text_changed' %}badge-warning{% else %}badge-neutral{% endif %}">
-                            {{ change.change_type }}
+                            {{ change.change_type|replace('_', ' ')|title }}
                         </span>
+                        {% if change.relocated_from_url %}
+                        <span class="badge badge-relocated" style="margin-left: 4px;">📍 Relocated</span>
+                        {% endif %}
                     </div>
                     <div class="timestamp">{{ change.detected_at.strftime('%Y-%m-%d %H:%M') }}</div>
                 </div>
+                
+                {% if change.match_type or change.similarity_score %}
+                <div style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px;">
+                    <div style="font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">🔍 Change Analysis</div>
+                    
+                    {% if change.match_type %}
+                    <div style="margin-bottom: 6px;">
+                        <span style="color: var(--text-secondary); font-size: 0.8rem;">Classification:</span>
+                        {# PoC-aligned classification labels #}
+                        {% if change.match_type == 'form_number_match' %}
+                            <span class="badge badge-success">📋 Updated Form (Same Name)</span>
+                        {% elif change.match_type == 'similarity_match' %}
+                            <span class="badge badge-info">📊 Updated Form (Name Change)</span>
+                        {% elif change.match_type == 'new_form' %}
+                            <span class="badge badge-error">🆕 New Form</span>
+                        {% elif change.match_type == 'uncertain' %}
+                            <span class="badge badge-warning">❓ Needs Review</span>
+                        {% else %}
+                            <span class="badge badge-neutral">{{ change.match_type|replace('_', ' ')|title }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if change.similarity_score %}
+                    <div>
+                        <span style="color: var(--text-secondary); font-size: 0.8rem;">Similarity:</span>
+                        <div style="display: inline-block; width: 100px; height: 8px; background: var(--bg-tertiary); border-radius: 4px; margin-left: 8px; vertical-align: middle;">
+                            <div style="width: {{ (change.similarity_score * 100)|round|int }}%; height: 100%; background: {% if change.similarity_score >= 0.8 %}var(--success){% elif change.similarity_score >= 0.5 %}var(--warning){% else %}var(--error){% endif %}; border-radius: 4px;"></div>
+                        </div>
+                        <span style="margin-left: 8px; font-weight: 600;">{{ (change.similarity_score * 100)|round|int }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if change.relocated_from_url %}
+                <div style="margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                    📍 Moved from: <a href="{{ change.relocated_from_url }}" target="_blank" class="url-link">{{ change.relocated_from_url[:50] }}...</a>
+                </div>
+                {% endif %}
                 
                 {% if change.affected_pages %}
                 <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
@@ -125,6 +208,39 @@
                 
                 {% if change.diff_summary %}
                 <div class="diff-preview" style="margin-top: 12px;">{{ change.diff_summary[:500] }}{% if change.diff_summary|length > 500 %}...{% endif %}</div>
+                {% endif %}
+                
+                <!-- Actions -->
+                <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    {% if change.new_version_id and change.previous_version_id %}
+                    <button onclick="showDiffViewer({{ url.id }}, {{ change.new_version_id }})" class="btn btn-warning btn-sm">
+                        🔍 View Visual Diff
+                    </button>
+                    {% endif %}
+                    
+                    {% if change.reviewed %}
+                    <span class="badge badge-success" style="padding: 6px 12px;">
+                        ✅ Approved
+                        {% if change.reviewed_at %}
+                        <span style="font-size: 0.7rem; opacity: 0.8; margin-left: 4px;">
+                            {{ change.reviewed_at.strftime('%m/%d %H:%M') }}
+                        </span>
+                        {% endif %}
+                    </span>
+                    <button onclick="unapproveChange({{ change.id }})" class="btn btn-secondary btn-sm" title="Remove approval">
+                        ↩️ Undo
+                    </button>
+                    {% else %}
+                    <button onclick="approveChange({{ change.id }})" class="btn btn-success btn-sm">
+                        ✅ Approve Change
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if change.review_notes %}
+                <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">
+                    📝 {{ change.review_notes }}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -141,3 +257,229 @@
 </div>
 {% endblock %}
 
+{% block scripts %}
+<style>
+    /* Visual diff modal */
+    .diff-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .diff-modal.active {
+        display: flex;
+    }
+    
+    .diff-modal-content {
+        background: var(--bg-primary);
+        border-radius: 12px;
+        max-width: 95%;
+        max-height: 90%;
+        overflow: auto;
+        position: relative;
+        padding: 24px;
+    }
+    
+    .diff-modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--bg-tertiary);
+        border: none;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .diff-modal-close:hover {
+        background: var(--accent);
+        color: white;
+    }
+    
+    .diff-image {
+        max-width: 100%;
+        border: 2px solid #ffd700;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    
+    .diff-legend {
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        font-size: 0.875rem;
+    }
+    
+    .diff-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .diff-legend-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+    }
+</style>
+
+<!-- Diff Modal -->
+<div id="diffModal" class="diff-modal" onclick="if(event.target === this) closeDiffViewer()">
+    <div class="diff-modal-content">
+        <button class="diff-modal-close" onclick="closeDiffViewer()">×</button>
+        <h2 style="margin-bottom: 16px;">🔍 Visual Diff - Changes Highlighted</h2>
+        <div id="diffImageContainer" style="text-align: center;">
+            <div id="diffLoading" style="padding: 40px; color: var(--text-secondary);">
+                Loading diff image...
+            </div>
+            <img id="diffImage" class="diff-image" style="display: none;" alt="Visual diff showing changes">
+        </div>
+        <div class="diff-legend">
+            <div class="diff-legend-item">
+                <div class="diff-legend-swatch" style="background: rgba(255, 255, 0, 0.6);"></div>
+                <span>Changed areas</span>
+            </div>
+            <div class="diff-legend-item">
+                <div class="diff-legend-swatch" style="background: rgba(255, 200, 0, 1); border: 2px solid #ffd700;"></div>
+                <span>Significant changes</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function extractTitle(urlId, versionId) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Extracting...';
+    
+    try {
+        const response = await fetch(`/api/urls/${urlId}/versions/${versionId}/extract-title`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(`Title extracted successfully!\n\nTitle: ${data.formatted_title}\nForm: ${data.form_number || 'N/A'}\nConfidence: ${Math.round(data.confidence * 100)}%`);
+            // Reload page to show updated title
+            location.reload();
+        } else {
+            alert(`Title extraction failed: ${data.detail || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function showDiffViewer(urlId, versionId) {
+    const modal = document.getElementById('diffModal');
+    const diffImage = document.getElementById('diffImage');
+    const diffLoading = document.getElementById('diffLoading');
+    
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Show loading
+    diffLoading.style.display = 'block';
+    diffImage.style.display = 'none';
+    
+    // Load diff image
+    diffImage.src = `/api/urls/${urlId}/versions/${versionId}/diff-preview`;
+    diffImage.onload = function() {
+        diffLoading.style.display = 'none';
+        diffImage.style.display = 'block';
+    };
+    diffImage.onerror = function() {
+        diffLoading.innerHTML = '❌ Failed to load diff image. The diff may not be available for this version.';
+    };
+}
+
+function closeDiffViewer() {
+    const modal = document.getElementById('diffModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDiffViewer();
+    }
+});
+
+async function approveChange(changeId) {
+    const notes = prompt('Optional: Add review notes (or leave blank):');
+    
+    try {
+        const url = `/api/changes/${changeId}/approve` + (notes ? `?notes=${encodeURIComponent(notes)}` : '');
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Reload page to show updated status
+            location.reload();
+        } else {
+            alert(`Failed to approve: ${data.detail || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function unapproveChange(changeId) {
+    if (!confirm('Remove approval from this change?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/changes/${changeId}/unapprove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            location.reload();
+        } else {
+            alert(`Failed to unapprove: ${data.detail || 'Unknown error'}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+</script>
+{% endblock %}

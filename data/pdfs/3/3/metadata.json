@@ -1,16 +1,15 @@
 {
-  "url": "https://www.courts.ca.gov/documents/pos010.pdf",
+  "url": "http://localhost:5001/pdfs/civ-003.pdf",
   "version_number": 1,
-  "pdf_hash": "f0ec5a7737b829046dfce67bcd00b4901adf501f957020cda23388b1e27fc7f6",
-  "text_hash": "62ab7ab4daebf0bebe86c2a6f1189682d132190268ef26f80dd73ec82daaa843",
+  "pdf_hash": "2b4a5eb4da058f6aef04a09553ba14a02b535d325efbf4f5f00694f54e383214",
+  "text_hash": "1638b4ecfe7d037467ad341ba296e32d8bfda55a05ae760f443dd07f01b4a424",
   "page_hashes": [
-    "b669d1459291f6439c4cfdbdd7e9d204f0d2692a97aec57a6bbc1b2f8e771005",
-    "9b6735a481d8a713b985b19c94dc847116dc9cbd1e2683235027ec0b9f479234"
+    "1638b4ecfe7d037467ad341ba296e32d8bfda55a05ae760f443dd07f01b4a424"
   ],
   "extraction_method": "pdfplumber",
   "ocr_used": false,
-  "page_count": 2,
-  "text_length": 4673,
-  "file_size": 187751,
-  "stored_at": "2026-01-08T15:53:28.165696"
+  "page_count": 1,
+  "text_length": 779,
+  "file_size": 6178,
+  "stored_at": "2026-01-12T18:40:15.839583"
 }

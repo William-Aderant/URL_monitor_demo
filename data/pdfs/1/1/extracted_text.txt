@@ -1,166 +1,25 @@
-CM-010
-ATTORNEY OR PARTY WITHOUT ATTORNEY STATE BAR NUMBER: FOR COURT USE ONLY
-NAME:
-FIRM NAME:
-STREET ADDRESS:
-CITY: STATE: ZIP CODE:
-TELEPHONE NO.: FAX NO.:
-EMAIL ADDRESS:
-ATTORNEY FOR (name):
-SUPERIOR COURT OF CALIFORNIA, COUNTY OF
-STREET ADDRESS:
-MAILING ADDRESS:
-CITY AND ZIP CODE:
-BRANCH NAME:
-CASE NAME:
-CIVIL CASE COVER SHEET Complex Case Designation CASE NUMBER:
-Unlimited Limited Counter Joinder
-(Amount (Amount
-demanded demanded is Filed with first appearance by defendant JUDGE:
-exceeds $35,000) $35,000 or less) (Cal. Rules of Court, rule 3.402) DEPT.:
-Items 1–6 below must be completed (see instructions on page 2).
-1. Check one box below for the case type that best describes this case:
-Auto Tort Contract Provisionally Complex Civil Litigation
-Auto (22) Breach of contract/warranty (06) (Cal. Rules of Court, rules 3.400–3.404)
-Uninsured motorist (46) Rule 3.740 collections (09) Antitrust/Trade regulation (03)
-Other collections (09) Construction defect (10)
-Asbestos
-Asbestos (04) Insurance coverage (18) Mass tort (40)
-Other contract (37) Securities litigation (28)
-Other PI/PD/WD (Personal Injury/Property
-Damage/Wrongful Death) Tort Real Property Environmental/Toxic tort (30)
-Product liability (24) Eminent domain/Inverse Comprehensive groundwater adjudication (47)
-condemnation (14) Insurance coverage claims arising from the
-Medical malpractice (45)
-Wrongful eviction (33) above listed provisionally complex case types
-Other PI/PD/WD (23) Other real property (26) (41)
-Non-PI/PD/WD (Other) Tort Unlawful Detainer Enforcement of Judgment
-Business tort/Unfair business practice (07) Commercial (31) Enforcement of judgment (20)
-Civil rights (08) Residential (32)
-Miscellaneous Civil Complaint
-Defamation (13) Drugs (38)
-RICO (27)
-Fraud (16) Judicial Review
-Other complaint (not specified above) (42)
-Intellectual property (19) Asset forfeiture (05)
-Professional negligence (25) Petition re arbitration award (11) Miscellaneous Civil Petition
-Other non-PI/PD/WD tort (35) Writ of mandate (02) Partnership and corporate governance (21)
-Employment Other judicial review (39) Other petition (not specified above) (43)
-Wrongful termination (36) Employment Development
-Department (EDD)
-Other employment (15)
-EDD decision review (48)
-Judicial Council of California, courts.ca.gov Civil Case Cover Sheet CM-010, Page 1 of 3
-Rev. January 1, 2026, Mandatory Form
-Cal. Rules of Court, rules 2.30, 3.220, 3.400–3.403, 3.740
-Cal. Stds. Jud. Admin., std. 3.10
-
-CM-010
-2. Is this case complex under rule 3.400 of the California Rules of Court? Yes No
-If the case is complex, mark the factors requiring exceptional judicial management:
-a. Large number of separately represented parties
-b. Extensive motion practice raising difficult or novel issues that will be time-consuming to resolve
-c. Substantial amount of documentary evidence
-d. Large number of witnesses
-e. Coordination with related actions pending in one or more courts in other counties, states, or countries, or in a federal court
-f. Substantial postjudgment judicial supervision
-3. Remedies sought (check all that apply):
-a. monetary
-b. nonmonetary; declaratory or injunctive relief
-c. punitive
-4. Number of causes of action (specify):
-5. Is this case a class action suit? Yes No
-6. If there are any known related cases, file and serve a notice of related case. (You may use form CM-015.)
-Date:
-(TYPE OR PRINT NAME) (SIGNATURE OF PARTY OR ATTORNEY FOR PARTY)
-NOTICE
-Plaintiff must file this cover sheet with the first paper filed in the action or proceeding (except small claims cases or cases filed under the Probate
-Code, Family Code, or Welfare and Institutions Code). (Cal. Rules of Court, rule 3.220.) Failure to file may result in sanctions.
-File this cover sheet in addition to any cover sheet required by local court rule.
-If this case is complex under rule 3.400 et seq. of the California Rules of Court, you must serve a copy of this cover sheet on all other parties to the
-action or proceeding.
-Unless this is a collections case under rule 3.740 of the California Rules of Court or a complex case, this cover sheet will be used for statistical
-purposes only.
-INSTRUCTIONS ON HOW TO COMPLETE THE COVER SHEET
-To Plaintiffs and Others Filing First Papers. If you are filing a first paper (for example, a complaint) in a civil case, you must
-complete and file, along with your first paper, the Civil Case Cover Sheet contained on pages 1 and 2. This information will be used to
-compile statistics about the types and numbers of cases filed. You must complete items 1 through 6 on the sheet. In item 1, you must
-check one box for the case type that best describes the case. If the case fits both a general and a more specific type of case listed in
-item 1, check the more specific one. If the case has multiple causes of action, check the box that best indicates the primary cause of
-action. To assist you in completing the sheet, examples of the cases that belong under each case type in item 1 are provided below. A
-cover sheet must be filed only with your initial paper. Failure to file a cover sheet with the first paper filed in a civil case may subject a
-party, its counsel, or both to sanctions under rules 2.30 and 3.220 of the California Rules of Court.
-To Parties in Rule 3.740 Collections Cases. A "collections case" under rule 3.740 of the California Rules of Court is defined as an
-action for recovery of money owed in a sum stated to be certain that is not more than $35,000, exclusive of interest and attorney's fees,
-arising from a transaction in which property, services, or money was acquired on credit. A collections case does not include an action
-seeking the following: (1) tort damages, (2) punitive damages, (3) recovery of real property, (4) recovery of personal property, or (5) a
-prejudgment writ of attachment. The identification of a case as a rule 3.740 collections case on this form means that it will be exempt
-from the general time-for-service requirements and case management rules, unless a defendant files a responsive pleading. A rule
-3.740 collections case will be subject to the requirements for service and obtaining a judgment in rule 3.740.
-To Parties in Complex Cases. In complex cases only, parties must also use the Civil Case Cover Sheet to designate whether the
-case is complex. If a plaintiff believes the case is complex under rule 3.400 of the California Rules of Court, this must be indicated by
-completing the appropriate boxes in items 1 and 2. If a plaintiff designates a case as complex, the cover sheet must be served with the
-complaint on all parties to the action. A defendant may file and serve no later than the time of its first appearance a joinder in the
-plaintiff's designation, a counter-designation that the case is not complex, or, if the plaintiff has made no designation, a designation that
-the case is complex.
-SEE PAGE 3 FOR INFORMATION PURPOSES ONLY.
-Rev. January 1, 2026 Civil Case Cover Sheet CM-010, Page 2 of 3
-
-CM-010
-CASE TYPES AND EXAMPLES
-Auto Tort Contract Provisionally Complex Civil Litigation (Cal.
-Auto (22)–Personal Injury/Property Damage/ Breach of Contract/Warranty (06) Rules of Court, rules 3.400–3.403)
-Wrongful Death Breach of Rental/Lease Contract (not Antitrust/Trade Regulation (03)
-Uninsured Motorist (46) (if the case involves unlawful detainer or wrongful eviction) Construction Defect (10)
-an uninsured motorist claim subject to Contract/Warranty Breach–Seller Plaintiff Claims Involving Mass Tort (40)
-arbitration, check this item instead of Auto) (not fraud or negligence) Securities Litigation (28)
-Asbestos Negligent Breach of Contract/Warranty Environmental/Toxic Tort (30)
-Asbestos (04) Other Breach of Contract/Warranty Comprehensive Groundwater Adjudication
-Asbestos Property Damage Collections (e.g., money owed, open book (47)
-Asbestos Personal Injury/Wrongful Death accounts) (09) Insurance Coverage Claims (arising from
-Other PI/PD/WD (Personal Injury/ Collections Case–Seller Plaintiff provisionally complex case type listed
-Property Damage/Wrongful Death) Tort Other Promissory Note/Collections Case above) (41)
-Product Liability (not asbestos or toxic/ Insurance Coverage (not provisionally Enforcement of Judgment
-environmental) (24) complex) (18) Enforcement of Judgment (20)
-Medical Malpractice (45) Auto Subrogation Abstract of Judgment (Out of County)
-Medical Malpractice–Physicians & Other Coverage Confession of Judgment (non-domestic
-Surgeons Other Contract (37) relations)
-Other Professional Health Care Contractual Fraud Sister-State Judgment
-Malpractice Other Contract Dispute Administrative Agency Award (not unpaid
-Other PI/PD/WD (23) Real Property taxes)
-Premises Liability (e.g., slip and fall) Eminent Domain/Inverse Condemnation (14) Petition/Certification of Entry of Judgment
-Intentional Bodily Injury/PD/WD (e.g., Wrongful Eviction (33) on Unpaid Taxes
-assault, vandalism) Other Real Property (e.g., quiet title) (26) Other Enforcement of Judgment Case
-Intentional Infliction of Emotional Distress Writ of Possession of Real Property Miscellaneous Civil Complaint
-Negligent Infliction of Emotional Distress Mortgage Foreclosure RICO (27)
-Other PI/PD/WD Quiet Title Other Complaint (not specified above) (42)
-Non-PI/PD/WD (Other) Tort Other Real Property (not eminent Declaratory Relief Only Injunctive Relief
-Business Tort/Unfair Business Practice (07) domain, landlord-tenant, or Only (non-harassment)
-Civil Rights (e.g., discrimination, false arrest) foreclosure) Mechanic's Lien
-(not civil harassment) (08) Unlawful Detainer Other Commercial Complaint Case (non-
-Defamation (e.g., slander, libel) (13) Commercial (31) tort/non-complex)
-Fraud (16) Residential (32) Other Civil Complaint (non-tort/non-
-Intellectual Property (19) Drugs (38) (if the case involves illegal drugs, complex)
-Professional Negligence (25) check this item; otherwise, report as Miscellaneous Civil Petition
-Legal Malpractice Commercial or Residential) Partnership and Corporate Governance (21)
-Other Professional Malpractice (not Judicial Review Other Petition (not specified above) (43)
-medical or legal) Asset Forfeiture (05) Civil Harassment
-Other Non-PI/PD/WD Tort (35) Petition re Arbitration Award (11) Workplace Violence
-Employment Writ of Mandate (02) Elder/Dependent Adult Abuse
-Wrongful Termination (36) Writ–Administrative Mandamus Election Contest
-Other Employment (15) Writ–Mandamus on Limited Court Case Petition for Name Change
-Matter Petition for Relief From Late Claim
-Writ–Other Limited Court Case Review Other Civil Petition
-Other Judicial Review (39)
-Review of Health Officer Order
-Notice of Appeal–Labor Commissioner
-Appeals
-Employment Development Department (EDD)
-EDD Decision Review (48) (if the case
-involves an Employment Development
-Department decision, check this item
-instead of Wrongful Termination or Other
-Employment)
-Rev. January 1, 2026 Civil Case Cover Sheet CM-010, Page 3 of 3
-For your protection and privacy, please press the Clear
-button after you have printed the form.
+Form CIV-001 Rev. 01/12/2026
+MOTION TO DISMISS
+SUPERIOR COURT OF THE STATE OF ALASKA
+JOHN SMITH, Case No: 2026-CV-001
+Plaintiff,
+MOTION TO DISMISS
+v.
+JANE JONES,
+INTRODUCTION
+This motion is filed pursuant to Rule 12(b)(6) of the Federal Rules of Civil Procedure.
+FACTUAL BACKGROUND
+On or about January 1, 2026, John Smith filed a complaint against Jane Jones alleging breach of contract
+and negligence.
+LEGAL STANDARD
+A motion to dismiss under Rule 12(b)(6) tests the legal sufficiency of the complaint. The court must
+accept all factual allegations as true.
+ARGUMENT
+The complaint fails to state a claim upon which relief can be granted. The allegations are conclusory.
+CONCLUSION
+For the foregoing reasons, Jane Jones respectfully requests that this Court grant the motion to dismiss
+with prejudice.
+Respectfully submitted,
+Attorney for Jane Jones
+Date: January 12, 2026
+Form CIV-001 - Page 1 of 1

@@ -12,27 +12,44 @@
             <tr>
                 <th>URL</th>
                 <th>Change Type</th>
-                <th>Affected Pages</th>
+                <th>Classification</th>
+                <th>Similarity</th>
                 <th>Detected</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for item in changes %}
-            <tr>
+            <tr class="{% if not item.change.reviewed and item.change.change_type != 'new' %}row-changed{% endif %}">
                 <td>
                     <div class="card-title">{{ item.url_name }}</div>
                 </td>
                 <td>
                     <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'binary_changed' %}badge-neutral{% else %}badge-success{% endif %}">
-                        {{ item.change.change_type }}
+                        {{ item.change.change_type|replace('_', ' ')|title }}
                     </span>
                 </td>
                 <td>
-                    {% if item.change.affected_pages %}
-                        {{ item.change.affected_pages|join(', ') }}
+                    {# PoC-aligned classification labels #}
+                    {% if item.change.match_type == 'form_number_match' %}
+                        <span class="badge badge-success" style="font-size: 0.7rem;">📋 Updated Form (Same Name)</span>
+                    {% elif item.change.match_type == 'similarity_match' %}
+                        <span class="badge badge-info" style="font-size: 0.7rem;">📊 Updated Form (Name Change)</span>
+                    {% elif item.change.match_type == 'new_form' %}
+                        <span class="badge badge-error" style="font-size: 0.7rem;">🆕 New Form</span>
+                    {% elif item.change.match_type == 'uncertain' %}
+                        <span class="badge badge-warning" style="font-size: 0.7rem;">❓ Needs Review</span>
+                    {% elif item.change.change_type == 'new' %}
+                        <span class="badge badge-info" style="font-size: 0.7rem;">🆕 New Form</span>
                     {% else %}
-                        —
+                        <span style="color: var(--text-secondary);">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.change.similarity_score %}
+                        <span style="font-weight: 600;">{{ (item.change.similarity_score * 100)|round|int }}%</span>
+                    {% else %}
+                        <span style="color: var(--text-secondary);">—</span>
                     {% endif %}
                 </td>
                 <td>
@@ -57,4 +74,5 @@
 </div>
 {% endif %}
 {% endblock %}
+
 

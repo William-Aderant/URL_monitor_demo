@@ -44,8 +44,8 @@ version_manager = VersionManager(file_store)
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
-    """Dashboard showing all monitored URLs."""
-    urls = db.query(MonitoredURL).order_by(MonitoredURL.name).all()
+    """Dashboard showing all enabled monitored URLs."""
+    urls = db.query(MonitoredURL).filter(MonitoredURL.enabled == True).order_by(MonitoredURL.name).all()
     
     # Enrich with version counts
     url_data = []
@@ -103,15 +103,19 @@ async def url_detail(request: Request, url_id: int, db: Session = Depends(get_db
 
 @router.get("/changes", response_class=HTMLResponse)
 async def changes_page(request: Request, db: Session = Depends(get_db)):
-    """Page showing recent changes across all URLs."""
+    """Page showing recent changes across all enabled URLs."""
     changes = version_manager.get_recent_changes(db, limit=50)
     
-    # Enrich with URL names
+    # Enrich with URL names, filtering out disabled URLs
     change_data = []
     for change in changes:
         url = db.query(MonitoredURL).filter(
             MonitoredURL.id == change.monitored_url_id
         ).first()
+        
+        # Skip changes for disabled URLs
+        if url and not url.enabled:
+            continue
         
         change_data.append({
             "change": change,
@@ -303,6 +307,223 @@ async def get_version_text(
         raise HTTPException(status_code=404, detail="Text not found")
     
     return {"version_id": version_id, "text": text}
+
+
+@router.get("/api/urls/{url_id}/versions/{version_id}/preview")
+async def get_version_preview(
+    url_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get preview image (PNG) of the first page."""
+    # First try to get existing preview
+    preview_path = file_store.get_preview_image(url_id, version_id)
+    
+    if preview_path and preview_path.exists():
+        return FileResponse(
+            preview_path,
+            media_type="image/png",
+            filename=f"preview_{version_id}.png"
+        )
+    
+    # If no preview exists, generate it on the fly
+    pdf_path = version_manager.get_normalized_pdf_path(db, version_id)
+    if not pdf_path or not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    try:
+        from services.title_extractor import TitleExtractor
+        extractor = TitleExtractor()
+        
+        # Generate preview
+        preview_output = file_store.get_preview_image_path(url_id, version_id)
+        image_bytes = extractor.convert_pdf_to_image(pdf_path, preview_output)
+        
+        if image_bytes and preview_output.exists():
+            return FileResponse(
+                preview_output,
+                media_type="image/png",
+                filename=f"preview_{version_id}.png"
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+    
+    raise HTTPException(status_code=404, detail="Preview not available")
+
+
+@router.get("/api/urls/{url_id}/versions/{version_id}/diff-preview")
+async def get_diff_preview(
+    url_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the visual diff preview image for a version.
+    Shows changes from the previous version with yellow highlighting.
+    """
+    # First try to get existing diff image
+    diff_path = file_store.get_diff_image(url_id, version_id)
+    
+    if diff_path and diff_path.exists():
+        return FileResponse(
+            diff_path,
+            media_type="image/png",
+            filename=f"diff_{version_id}.png"
+        )
+    
+    # If no diff exists, try to generate it
+    version = db.query(PDFVersion).filter(
+        PDFVersion.id == version_id,
+        PDFVersion.monitored_url_id == url_id
+    ).first()
+    
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # Find previous version
+    prev_version = db.query(PDFVersion).filter(
+        PDFVersion.monitored_url_id == url_id,
+        PDFVersion.version_number < version.version_number
+    ).order_by(PDFVersion.version_number.desc()).first()
+    
+    if not prev_version:
+        raise HTTPException(status_code=404, detail="No previous version to compare against")
+    
+    # Get PDF paths
+    curr_pdf = version_manager.get_normalized_pdf_path(db, version_id)
+    prev_pdf = version_manager.get_normalized_pdf_path(db, prev_version.id)
+    
+    if not curr_pdf or not prev_pdf:
+        raise HTTPException(status_code=404, detail="PDF files not found")
+    
+    try:
+        from services.visual_diff import VisualDiff
+        differ = VisualDiff()
+        
+        diff_output = file_store.get_diff_image_path(url_id, version_id)
+        result = differ.generate_diff(
+            old_pdf_path=prev_pdf,
+            new_pdf_path=curr_pdf,
+            output_path=diff_output
+        )
+        
+        if result.success and result.diff_image_path.exists():
+            return FileResponse(
+                result.diff_image_path,
+                media_type="image/png",
+                filename=f"diff_{version_id}.png"
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to generate diff: {result.error}")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating diff: {str(e)}")
+
+
+@router.post("/api/urls/{url_id}/versions/{version_id}/extract-title")
+async def extract_title_for_version(
+    url_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger title extraction for a specific version.
+    Uses AWS Textract + Bedrock to extract title and form number.
+    """
+    from services.title_extractor import TitleExtractor
+    
+    # Get the version
+    version = db.query(PDFVersion).filter(PDFVersion.id == version_id).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # Get PDF path
+    pdf_path = version_manager.get_normalized_pdf_path(db, version_id)
+    if not pdf_path or not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    # Initialize extractor
+    extractor = TitleExtractor()
+    
+    if not extractor.is_available():
+        raise HTTPException(
+            status_code=503, 
+            detail="AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+        )
+    
+    # Extract title
+    preview_output = file_store.get_preview_image_path(url_id, version_id)
+    result = extractor.extract_title(pdf_path, preview_output)
+    
+    if not result.success:
+        raise HTTPException(status_code=500, detail=f"Title extraction failed: {result.error}")
+    
+    # Update the version in database
+    version.formatted_title = result.formatted_title
+    version.form_number = result.form_number
+    version.title_confidence = result.combined_confidence
+    version.title_extraction_method = result.extraction_method
+    db.commit()
+    
+    return {
+        "success": True,
+        "formatted_title": result.formatted_title,
+        "form_number": result.form_number,
+        "confidence": result.combined_confidence,
+        "reasoning": result.reasoning
+    }
+
+
+@router.post("/api/changes/{change_id}/approve")
+async def approve_change(
+    change_id: int,
+    notes: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Approve/mark a change as reviewed.
+    """
+    from datetime import datetime
+    
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    change.reviewed = True
+    change.reviewed_at = datetime.utcnow()
+    change.review_notes = notes
+    db.commit()
+    
+    return {
+        "success": True,
+        "change_id": change_id,
+        "reviewed": True,
+        "reviewed_at": change.reviewed_at.isoformat()
+    }
+
+
+@router.post("/api/changes/{change_id}/unapprove")
+async def unapprove_change(
+    change_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove approval from a change (mark as not reviewed).
+    """
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    change.reviewed = False
+    change.reviewed_at = None
+    change.review_notes = None
+    db.commit()
+    
+    return {
+        "success": True,
+        "change_id": change_id,
+        "reviewed": False
+    }
 
 
 @router.get("/api/changes", response_model=list[ChangeLogResponse])

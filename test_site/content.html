@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Court Filing System</title>
+    <style>
+        body { font-family: Georgia, serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        h1 { color: #1a365d; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
+        .filing { background: #f7fafc; padding: 15px; margin: 10px 0; border-left: 4px solid #3182ce; }
+        .filing a { color: #2b6cb0; text-decoration: none; font-weight: bold; }
+        .filing a:hover { text-decoration: underline; }
+        .date { color: #718096; font-size: 0.9em; }
+        .case-number { font-family: monospace; background: #edf2f7; padding: 2px 6px; }
+        .new { background: #c6f6d5; border-left-color: #38a169; }
+        .changed { background: #fefcbf; border-left-color: #d69e2e; }
+        .relocated { background: #e9d8fd; border-left-color: #805ad5; }
+    </style>
+</head>
+<body>
+    <h1>📋 District Court - Recent Filings</h1>
+    
+    <p><strong>Last Updated:</strong> January 12, 2026</p>
+    
+    <h2>Recent Case Filings</h2>
+    
+        <div class="filing ">
+        <a href="/pdfs/civ-001.pdf">Motion to Dismiss - Smith v. Jones</a>
+        <p>Case No: <span class="case-number">2026-CV-001</span></p>
+        <p class="date">Filed: January 10, 2026</p>
+    </div>
+
+    <div class="filing ">
+        <a href="/pdfs/civ-002.pdf">Petition for Custody - Davis v. Davis</a>
+        <p>Case No: <span class="case-number">2026-CV-002</span></p>
+        <p class="date">Filed: January 11, 2026</p>
+    </div>
+
+    <div class="filing relocated">
+        <a href="/pdfs/civ-003-final.pdf">Petition for Appeal - Garcia v. State</a>
+        <p>Case No: <span class="case-number">2026-CV-003</span></p>
+        <p class="date">Filed: January 12, 2026 (Relocated)</p>
+    </div>
+
+    
+    <h2>Court Announcements</h2>
+    <div class="filing">
+        <p>The court will be closed on January 20, 2026 for the Martin Luther King Jr. holiday.</p>
+    </div>
+</body>
+</html>

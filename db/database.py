@@ -47,3 +47,4 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     logger.info("Database initialized successfully")
 
+

@@ -47,6 +47,52 @@ tbody tr {
     transition: background-color 0.15s ease;
 }
 
+/* Yellow highlighting for changed rows */
+tbody tr.row-changed {
+    background-color: rgba(255, 255, 0, 0.15) !important;
+    border-left: 4px solid #ffd700;
+}
+
+tbody tr.row-changed:hover {
+    background-color: rgba(255, 255, 0, 0.25) !important;
+}
+
+/* Relocated form badge */
+.badge-relocated {
+    background-color: #ff9800 !important;
+    color: white !important;
+}
+
+/* Warning button style */
+.btn-warning {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+    color: #1a1a1a;
+    border: none;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #ffb300 0%, #ffa000 100%);
+    transform: translateY(-1px);
+}
+
+/* Success button style */
+.btn-success {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    border: none;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    transform: translateY(-1px);
+}
+
+/* Error badge */
+.badge-error {
+    background-color: #fc8181 !important;
+    color: #1a1a1a !important;
+}
+
 /* Badge animations */
 .badge {
     transition: transform 0.15s ease;
@@ -96,4 +142,5 @@ tbody tr {
         break-inside: avoid;
     }
 }
+
 

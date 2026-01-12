@@ -258,6 +258,88 @@ class FileStore:
                 return json.load(f)
         return None
     
+    def store_preview_image(
+        self,
+        url_id: int,
+        version_id: int,
+        image_bytes: bytes
+    ) -> Path:
+        """
+        Store preview image (PNG of first page).
+        
+        Args:
+            url_id: Monitored URL ID
+            version_id: Version ID
+            image_bytes: PNG image bytes
+            
+        Returns:
+            Path to stored file
+        """
+        version_dir = self.create_version_directory(url_id, version_id)
+        dest_path = version_dir / "preview.png"
+        
+        with open(dest_path, 'wb') as f:
+            f.write(image_bytes)
+        
+        logger.debug("Stored preview image", dest=str(dest_path), size=len(image_bytes))
+        return dest_path
+    
+    def get_preview_image(self, url_id: int, version_id: int) -> Optional[Path]:
+        """
+        Get path to preview image if it exists.
+        
+        Args:
+            url_id: Monitored URL ID
+            version_id: Version ID
+            
+        Returns:
+            Path to file or None if not found
+        """
+        path = self.get_version_dir(url_id, version_id) / "preview.png"
+        return path if path.exists() else None
+    
+    def get_preview_image_path(self, url_id: int, version_id: int) -> Path:
+        """
+        Get the expected path for preview image (may not exist yet).
+        
+        Args:
+            url_id: Monitored URL ID
+            version_id: Version ID
+            
+        Returns:
+            Path where preview image should be stored
+        """
+        return self.get_version_dir(url_id, version_id) / "preview.png"
+    
+    def get_diff_image_path(self, url_id: int, version_id: int) -> Path:
+        """
+        Get the expected path for diff image (may not exist yet).
+        
+        Args:
+            url_id: Monitored URL ID
+            version_id: Version ID
+            
+        Returns:
+            Path where diff image should be stored
+        """
+        version_dir = self.get_version_dir(url_id, version_id)
+        version_dir.mkdir(parents=True, exist_ok=True)
+        return version_dir / "diff_preview.png"
+    
+    def get_diff_image(self, url_id: int, version_id: int) -> Optional[Path]:
+        """
+        Get path to diff image if it exists.
+        
+        Args:
+            url_id: Monitored URL ID
+            version_id: Version ID
+            
+        Returns:
+            Path to file or None if not found
+        """
+        path = self.get_version_dir(url_id, version_id) / "diff_preview.png"
+        return path if path.exists() else None
+    
     def list_versions(self, url_id: int) -> list[int]:
         """
         List all version IDs for a URL.
@@ -321,4 +403,5 @@ class FileStore:
                 total += path.stat().st_size
         
         return total
+
 

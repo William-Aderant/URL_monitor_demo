@@ -29,29 +29,101 @@
     <table>
         <thead>
             <tr>
-                <th>Name</th>
+                <th style="width: 60px;">Preview</th>
+                <th>Name / Formatted Title</th>
                 <th>Status</th>
                 <th>Versions</th>
                 <th>Last Checked</th>
-                <th>Last Change</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for item in urls %}
-            <tr>
+            <tr class="{% if item.recent_change and item.recent_change.change_type != 'new' and not item.recent_change.reviewed %}row-changed{% endif %}{% if item.recent_change and item.recent_change.relocated_from_url and not item.recent_change.reviewed %} row-relocated{% endif %}">
+                <td>
+                    {% if item.latest_version %}
+                    <a href="/url/{{ item.url.id }}" title="View details">
+                        <img src="/api/urls/{{ item.url.id }}/versions/{{ item.latest_version.id }}/preview" 
+                             alt="Preview" 
+                             class="preview-thumbnail"
+                             style="width: 50px; height: 65px; object-fit: cover; border: 1px solid var(--border); border-radius: 4px;"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div style="display: none; width: 50px; height: 65px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; align-items: center; justify-content: center; font-size: 1.5rem;">📄</div>
+                    </a>
+                    {% else %}
+                    <div style="width: 50px; height: 65px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📄</div>
+                    {% endif %}
+                </td>
                 <td>
                     <div class="card-title">{{ item.url.name }}</div>
+                    {% if item.latest_version and item.latest_version.formatted_title %}
+                    <div style="margin-top: 4px;">
+                        {# Display title in PoC format: "Title {FormNumber}" #}
+                        <span style="color: var(--text-primary); font-weight: 500;">{{ item.latest_version.display_title or item.latest_version.formatted_title }}</span>
+                        {% if item.latest_version.title_confidence %}
+                        <span style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 6px;">
+                            {{ (item.latest_version.title_confidence * 100)|round|int }}% confidence
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if item.latest_version.revision_date %}
+                    <div style="margin-top: 2px; font-size: 0.75rem; color: var(--text-secondary);">
+                        Rev. {{ item.latest_version.revision_date }}
+                    </div>
+                    {% endif %}
+                    {% endif %}
                     <div class="card-subtitle">
-                        <a href="{{ item.url.url }}" target="_blank" class="url-link">{{ item.url.url[:60] }}{% if item.url.url|length > 60 %}...{% endif %}</a>
+                        <a href="{{ item.url.url }}" target="_blank" class="url-link">{{ item.url.url[:50] }}{% if item.url.url|length > 50 %}...{% endif %}</a>
                     </div>
                 </td>
                 <td>
                     {% if item.url.enabled %}
-                        {% if item.recent_change and item.recent_change.change_type != 'new' %}
-                            <span class="badge badge-warning">Changed</span>
+                        {% if item.recent_change and item.recent_change.change_type != 'new' and not item.recent_change.reviewed %}
+                            {# Unapproved change - show as Changed with pending review #}
+                            <div class="change-info">
+                                <span class="badge badge-warning">{{ item.recent_change.change_type|replace('_', ' ')|title }}</span>
+                                
+                                {% if item.recent_change.match_type %}
+                                <div style="margin-top: 6px; font-size: 0.75rem;">
+                                    {# PoC-aligned classification labels #}
+                                    {% if item.recent_change.match_type == 'form_number_match' %}
+                                        <span class="badge badge-success" style="font-size: 0.65rem;">📋 Updated Form (Same Name)</span>
+                                    {% elif item.recent_change.match_type == 'similarity_match' %}
+                                        <span class="badge badge-info" style="font-size: 0.65rem;">📊 Updated Form (Name Change)</span>
+                                    {% elif item.recent_change.match_type == 'new_form' %}
+                                        <span class="badge badge-error" style="font-size: 0.65rem;">🆕 New Form</span>
+                                    {% elif item.recent_change.match_type == 'uncertain' %}
+                                        <span class="badge badge-warning" style="font-size: 0.65rem;">❓ Needs Review</span>
+                                    {% else %}
+                                        <span class="badge badge-neutral" style="font-size: 0.65rem;">{{ item.recent_change.match_type|replace('_', ' ')|title }}</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.recent_change.similarity_score %}
+                                <div style="margin-top: 4px; font-size: 0.7rem; color: var(--text-secondary);">
+                                    {{ (item.recent_change.similarity_score * 100)|round|int }}% similar
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.recent_change.relocated_from_url %}
+                                <div style="margin-top: 4px;">
+                                    <span class="badge badge-relocated" style="font-size: 0.65rem;">📍 Relocated</span>
+                                </div>
+                                {% endif %}
+                                
+                                <div style="margin-top: 4px;">
+                                    <span class="badge badge-neutral" style="font-size: 0.65rem; background: var(--bg-tertiary);">⏳ Pending Review</span>
+                                </div>
+                            </div>
                         {% elif item.version_count > 0 %}
+                            {# Either no changes, approved change, or initial version - show as Unchanged #}
                             <span class="badge badge-success">Unchanged</span>
+                            {% if item.recent_change and item.recent_change.reviewed %}
+                            <div style="margin-top: 4px; font-size: 0.7rem; color: var(--text-secondary);">
+                                ✅ Last change approved
+                            </div>
+                            {% endif %}
                         {% else %}
                             <span class="badge badge-info">New</span>
                         {% endif %}
@@ -65,13 +137,6 @@
                         <span class="timestamp">{{ item.url.last_checked_at.strftime('%Y-%m-%d %H:%M') }}</span>
                     {% else %}
                         <span class="timestamp">Never</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if item.url.last_change_at %}
-                        <span class="timestamp">{{ item.url.last_change_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                    {% else %}
-                        <span class="timestamp">—</span>
                     {% endif %}
                 </td>
                 <td>

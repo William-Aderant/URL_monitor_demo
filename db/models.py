@@ -10,7 +10,7 @@ Tables:
 from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Boolean, 
-    ForeignKey, JSON
+    ForeignKey, JSON, Float
 )
 from sqlalchemy.orm import relationship
 from db.database import Base
@@ -32,6 +32,9 @@ class MonitoredURL(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_checked_at = Column(DateTime, nullable=True)
     last_change_at = Column(DateTime, nullable=True)
+    
+    # Parent page for crawling relocated forms
+    parent_page_url = Column(String(2048), nullable=True)
     
     # Relationships
     versions = relationship("PDFVersion", back_populates="monitored_url", cascade="all, delete-orphan")
@@ -68,12 +71,34 @@ class PDFVersion(Base):
     text_length = Column(Integer, nullable=True)
     ocr_used = Column(Boolean, default=False)
     
+    # Title extraction fields
+    formatted_title = Column(String(512), nullable=True)
+    form_number = Column(String(100), nullable=True)
+    title_confidence = Column(Float, nullable=True)
+    title_extraction_method = Column(String(50), nullable=True)  # textract+bedrock, manual
+    
+    # Revision date extracted from PDF (REQ-006)
+    revision_date = Column(String(50), nullable=True)  # Extracted revision date string
+    
     # Timestamps
     fetched_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     monitored_url = relationship("MonitoredURL", back_populates="versions")
+    
+    @property
+    def display_title(self) -> str:
+        """
+        Combined display title per PoC format: "Title {FormNumber}"
+        
+        Example: "Acknowledgement Of Security Interest {F207-143-000}"
+        """
+        if not self.formatted_title:
+            return ""
+        if self.form_number:
+            return f"{self.formatted_title} {{{self.form_number}}}"
+        return self.formatted_title
     
     def __repr__(self) -> str:
         return f"<PDFVersion(id={self.id}, url_id={self.monitored_url_id}, v={self.version_number})>"
@@ -101,6 +126,18 @@ class ChangeLog(Base):
     pdf_hash_changed = Column(Boolean, default=False)
     text_hash_changed = Column(Boolean, default=False)
     
+    # Enhanced change detection fields
+    match_type = Column(String(50), nullable=True)  # form_number_match, similarity_match, new_form, uncertain
+    similarity_score = Column(Float, nullable=True)  # 0.0 to 1.0 text similarity
+    relocated_from_url = Column(String(2048), nullable=True)  # Original URL if form moved
+    diff_image_path = Column(String(512), nullable=True)  # Path to visual diff image
+    
+    # Review/approval tracking
+    reviewed = Column(Boolean, default=False)  # Has this change been reviewed/approved?
+    reviewed_at = Column(DateTime, nullable=True)  # When was it reviewed?
+    reviewed_by = Column(String(255), nullable=True)  # Who reviewed it (for future use)
+    review_notes = Column(Text, nullable=True)  # Optional notes from reviewer
+    
     # Timestamps
     detected_at = Column(DateTime, default=datetime.utcnow)
     
@@ -111,4 +148,5 @@ class ChangeLog(Base):
     
     def __repr__(self) -> str:
         return f"<ChangeLog(id={self.id}, url_id={self.monitored_url_id}, type='{self.change_type}')>"
+
 

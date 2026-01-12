@@ -261,3 +261,4 @@ class TextExtractor:
             )
         return None
 
+

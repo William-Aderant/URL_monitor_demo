@@ -118,7 +118,7 @@ class ChangeLog(Base):
     new_version_id = Column(Integer, ForeignKey("pdf_versions.id"), nullable=False)
     
     # Change details
-    change_type = Column(String(50), nullable=False)  # new, modified, text_changed, binary_changed
+    change_type = Column(String(50), nullable=False)  # new, modified, text_changed, format_only, relocated
     affected_pages = Column(JSON, nullable=True)  # List of page numbers that changed
     diff_summary = Column(Text, nullable=True)  # Human-readable summary of changes
     

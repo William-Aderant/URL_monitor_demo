@@ -378,12 +378,12 @@ def scenario_format_only():
     print("\n  📋 What happens:")
     print("     1. PDF binary will have a different hash (new timestamps, etc.)")
     print("     2. Extracted text will be identical to previous version")
-    print("     3. Monitor should detect: binary_changed but NOT text_changed")
-    print("     4. Change should be classified as 'No Change' (no action needed)")
+    print("     3. Monitor should detect: format_only change (binary changed, text unchanged)")
+    print("     4. Change should be classified as 'format_only' (tracked but no semantic change)")
     print("\n  📊 Expected result:")
     print("     - pdf_hash_changed: True")
     print("     - text_hash_changed: False")
-    print("     - Classified as: unchanged (no action)")
+    print("     - Classified as: format_only (tracked, no action needed)")
     print("\n✅ Run './venv/bin/python cli.py run' to verify format-only detection")
 
 

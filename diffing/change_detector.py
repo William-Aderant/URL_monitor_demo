@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 class ChangeResult:
     """Result of change detection comparison."""
     changed: bool
-    change_type: str = ""  # new, unchanged, modified, text_changed, binary_changed
+    change_type: str = ""  # new, unchanged, modified, text_changed, format_only
     pdf_hash_changed: bool = False
     text_hash_changed: bool = False
     affected_pages: list[int] = field(default_factory=list)
@@ -37,11 +37,11 @@ class ChangeDetector:
     Change detection logic:
     1. If no previous version exists -> "new" (changed=True)
     2. If text hash differs -> "text_changed" (changed=True, semantic change)
-    3. If only PDF hash differs -> "unchanged" (changed=False, binary-only difference ignored)
+    3. If only PDF hash differs -> "format_only" (changed=True, binary-only change tracked)
     4. If neither differs -> "unchanged" (changed=False)
     
-    Note: Binary-only changes (PDF hash differs but text identical) are NOT
-    considered meaningful changes. These typically occur due to:
+    Note: Format-only changes (PDF hash differs but text identical) are tracked
+    but not considered semantic changes. These typically occur due to:
     - Server-generated timestamps
     - Unique document IDs per download
     - Font subsetting variations
@@ -127,26 +127,26 @@ class ChangeDetector:
         
         elif pdf_changed:
             # Binary change only - no semantic difference
-            # This is NOT considered a meaningful change for monitoring purposes
+            # This is a format-only change (binary changed but text identical)
             # Common causes:
             # - Server-generated timestamps in PDF metadata
             # - Unique document IDs generated per download
             # - Font subsetting variations
             # - Object ordering differences
             # 
-            # Since text content is identical, treat as unchanged
+            # We track this as a format-only change (not a semantic change)
             logger.info(
-                "Binary-only difference detected (not a meaningful change)",
+                "Format-only change detected (binary changed, text unchanged)",
                 pdf_hash_changed=True,
                 text_hash_changed=False
             )
             
             return ChangeResult(
-                changed=False,  # NOT a meaningful change
-                change_type="unchanged",
+                changed=True,  # Track format-only changes
+                change_type="format_only",
                 pdf_hash_changed=True,
                 text_hash_changed=False,
-                diff_summary=""
+                diff_summary="Format-only change: PDF binary changed but extracted text is identical. No semantic changes detected."
             )
         
         else:

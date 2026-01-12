@@ -20,14 +20,27 @@
         </thead>
         <tbody>
             {% for item in changes %}
-            <tr class="{% if not item.change.reviewed and item.change.change_type != 'new' %}row-changed{% endif %}">
+            <tr class="{% if not item.change.reviewed and item.change.change_type != 'new' %}row-changed{% endif %}{% if item.change.relocated_from_url %} row-relocated{% endif %}">
                 <td>
                     <div class="card-title">{{ item.url_name }}</div>
+                    {% if item.change.relocated_from_url %}
+                    <div style="margin-top: 6px; padding: 6px; background: rgba(255, 200, 0, 0.15); border-left: 3px solid #ffc800; border-radius: 4px; font-size: 0.75rem;">
+                        <div style="color: var(--text-secondary); margin-bottom: 2px;">📍 URL Changed:</div>
+                        <div style="color: var(--text-primary);">
+                            <span style="text-decoration: line-through; opacity: 0.6;">{{ item.change.relocated_from_url[:50] }}{% if item.change.relocated_from_url|length > 50 %}...{% endif %}</span>
+                            <span style="margin: 0 4px;">→</span>
+                            <span style="font-weight: 600;">{{ item.url_url[:50] }}{% if item.url_url|length > 50 %}...{% endif %}</span>
+                        </div>
+                    </div>
+                    {% endif %}
                 </td>
                 <td>
-                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'binary_changed' %}badge-neutral{% else %}badge-success{% endif %}">
+                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'format_only' %}badge-neutral{% else %}badge-success{% endif %}">
                         {{ item.change.change_type|replace('_', ' ')|title }}
                     </span>
+                    {% if item.change.relocated_from_url %}
+                    <span class="badge badge-relocated" style="margin-left: 4px; font-size: 0.65rem;">📍 URL Changed</span>
+                    {% endif %}
                 </td>
                 <td>
                     {# PoC-aligned classification labels #}

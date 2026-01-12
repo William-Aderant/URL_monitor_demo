@@ -231,6 +231,39 @@ class FormMatcher:
             total_lines_new=len(lines2)
         )
     
+    def _titles_differ(self, old_title: Optional[str], new_title: Optional[str]) -> bool:
+        """
+        Check if two titles are meaningfully different.
+        
+        Normalizes titles before comparison to handle minor formatting differences.
+        
+        Args:
+            old_title: Previous version title
+            new_title: New version title
+            
+        Returns:
+            True if titles are meaningfully different, False otherwise
+        """
+        if not old_title and not new_title:
+            return False
+        if not old_title or not new_title:
+            return True
+        
+        # Normalize for comparison
+        old_normalized = re.sub(r'\s+', ' ', old_title.lower().strip())
+        new_normalized = re.sub(r'\s+', ' ', new_title.lower().strip())
+        
+        # Check if they're the same after normalization
+        if old_normalized == new_normalized:
+            return False
+        
+        # Check similarity - if very similar (>90%), consider them the same
+        similarity = difflib.SequenceMatcher(None, old_normalized, new_normalized).ratio()
+        if similarity >= 0.90:
+            return False
+        
+        return True
+    
     def _normalize_text(self, text: str) -> str:
         """
         Normalize text for comparison.
@@ -305,17 +338,35 @@ class FormMatcher:
         # Strategy 1: Form number matching (highest confidence)
         if old_form_number and new_form_number:
             if old_form_number.upper() == new_form_number.upper():
-                return MatchResult(
-                    match_type=MatchType.FORM_NUMBER_MATCH,
-                    similarity_score=diff.similarity_score,
-                    form_number_old=old_form_number,
-                    form_number_new=new_form_number,
-                    title_old=old_title,
-                    title_new=new_title,
-                    confidence=0.95,
-                    reason=f"Form numbers match: {old_form_number}",
-                    changed_sections=changed_sections
-                )
+                # Form numbers match - check if title changed
+                title_changed = self._titles_differ(old_title, new_title)
+                
+                if title_changed:
+                    # Same form number but different title = "Updated Form (Name Change)"
+                    return MatchResult(
+                        match_type=MatchType.SIMILARITY_MATCH,
+                        similarity_score=diff.similarity_score,
+                        form_number_old=old_form_number,
+                        form_number_new=new_form_number,
+                        title_old=old_title,
+                        title_new=new_title,
+                        confidence=0.90,
+                        reason=f"Form number {old_form_number} unchanged but title changed: '{old_title}' → '{new_title}'",
+                        changed_sections=changed_sections
+                    )
+                else:
+                    # Same form number and same title = "Updated Form (Same Name)"
+                    return MatchResult(
+                        match_type=MatchType.FORM_NUMBER_MATCH,
+                        similarity_score=diff.similarity_score,
+                        form_number_old=old_form_number,
+                        form_number_new=new_form_number,
+                        title_old=old_title,
+                        title_new=new_title,
+                        confidence=0.95,
+                        reason=f"Form numbers match: {old_form_number}",
+                        changed_sections=changed_sections
+                    )
             else:
                 # Different form numbers - likely a new form
                 return MatchResult(

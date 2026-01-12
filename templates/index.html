@@ -5,6 +5,20 @@
 {% block content %}
 <h1>Monitored URLs</h1>
 
+{% if message %}
+<div class="card" style="margin-bottom: 24px; {% if message_type == 'error' %}background: rgba(244, 33, 46, 0.1); border-left: 4px solid var(--error);{% else %}background: rgba(0, 186, 124, 0.1); border-left: 4px solid var(--success);{% endif %}">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 1.5rem;">{% if message_type == 'error' %}❌{% else %}✅{% endif %}</span>
+        <div>
+            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                {% if message_type == 'error' %}Error{% else %}Success{% endif %}
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.9rem;">{{ message }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if urls %}
 <div class="stats-grid">
     <div class="stat-card">
@@ -74,6 +88,16 @@
                     {% endif %}
                     <div class="card-subtitle">
                         <a href="{{ item.url.url }}" target="_blank" class="url-link">{{ item.url.url[:50] }}{% if item.url.url|length > 50 %}...{% endif %}</a>
+                        {% if item.recent_change and item.recent_change.relocated_from_url %}
+                        <div style="margin-top: 6px; padding: 6px; background: rgba(255, 200, 0, 0.15); border-left: 3px solid #ffc800; border-radius: 4px; font-size: 0.75rem;">
+                            <div style="color: var(--text-secondary); margin-bottom: 2px;">📍 URL Changed:</div>
+                            <div style="color: var(--text-primary);">
+                                <span style="text-decoration: line-through; opacity: 0.6;">{{ item.recent_change.relocated_from_url[:45] }}{% if item.recent_change.relocated_from_url|length > 45 %}...{% endif %}</span>
+                                <span style="margin: 0 4px;">→</span>
+                                <span style="font-weight: 600;">{{ item.url.url[:45] }}{% if item.url.url|length > 45 %}...{% endif %}</span>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </td>
                 <td>
@@ -107,8 +131,12 @@
                                 {% endif %}
                                 
                                 {% if item.recent_change.relocated_from_url %}
-                                <div style="margin-top: 4px;">
-                                    <span class="badge badge-relocated" style="font-size: 0.65rem;">📍 Relocated</span>
+                                <div style="margin-top: 6px; padding: 6px; background: rgba(255, 200, 0, 0.15); border-left: 3px solid #ffc800; border-radius: 4px;">
+                                    <div style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 2px;">📍 URL Changed</div>
+                                    <div style="font-size: 0.6rem; color: var(--text-primary); line-height: 1.3;">
+                                        <div style="text-decoration: line-through; opacity: 0.6;">{{ item.recent_change.relocated_from_url[:30] }}{% if item.recent_change.relocated_from_url|length > 30 %}...{% endif %}</div>
+                                        <div style="font-weight: 600; margin-top: 2px;">→ {{ item.url.url[:30] }}{% if item.url.url|length > 30 %}...{% endif %}</div>
+                                    </div>
                                 </div>
                                 {% endif %}
                                 
@@ -159,11 +187,65 @@
 {% endif %}
 
 <div style="margin-top: 24px;">
-    <form action="/monitor/run" method="post" style="display: inline;">
-        <button type="submit" class="btn btn-primary">
+    <form id="monitorForm" action="/monitor/run" method="post" style="display: inline;" onsubmit="showMonitoringProgress()">
+        <button type="submit" id="monitorBtn" class="btn btn-primary">
             ▶ Run Monitoring Cycle
         </button>
     </form>
+    <div id="monitorProgress" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 20px; height: 20px; border: 3px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span style="color: var(--text-primary);">Running monitoring cycle... This may take a moment.</span>
+        </div>
+    </div>
 </div>
+
+<script>
+function showMonitoringProgress() {
+    const btn = document.getElementById('monitorBtn');
+    const progress = document.getElementById('monitorProgress');
+    
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running...';
+    progress.style.display = 'block';
+    
+    // The form will submit and redirect, but this gives immediate feedback
+}
+
+// Add spinner animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+
+// Auto-hide success message after 5 seconds
+{% if message and message_type == 'success' %}
+setTimeout(function() {
+    const msgDiv = document.querySelector('.card[style*="border-left: 4px solid var(--success)"]');
+    if (msgDiv) {
+        msgDiv.style.transition = 'opacity 0.5s';
+        msgDiv.style.opacity = '0';
+        setTimeout(() => msgDiv.remove(), 500);
+    }
+}, 5000);
+
+// Scroll to top to show message
+window.scrollTo({ top: 0, behavior: 'smooth' });
+{% endif %}
+
+// Force refresh if refresh parameter is present (remove it from URL)
+if (window.location.search.includes('refresh=') || window.location.search.includes('error=')) {
+    // Clean up URL after a moment
+    setTimeout(function() {
+        const url = new URL(window.location);
+        url.searchParams.delete('refresh');
+        url.searchParams.delete('error');
+        window.history.replaceState({}, '', url);
+    }, 100);
+}
+</script>
 {% endblock %}
 

@@ -46,7 +46,7 @@ from pdf_processing.normalizer import PDFNormalizer
 from pdf_processing.text_extractor import TextExtractor
 from pdf_processing.ocr_fallback import OCRFallback
 from diffing.hasher import Hasher
-from diffing.change_detector import ChangeDetector
+from diffing.change_detector import ChangeDetector, ChangeResult
 from storage.version_manager import VersionManager
 from services.title_extractor import TitleExtractor
 from services.link_crawler import LinkCrawler
@@ -302,8 +302,11 @@ class MonitoringOrchestrator:
                         confidence=f"{match_result.confidence:.1%}"
                     )
                 
-                # Step 6: Store version if changed or first version
-                if change_result.changed:
+                # Step 6: Store version if changed, first version, or relocated
+                # Always create a version if content changed, it's the first version, or URL relocated
+                should_create_version = change_result.changed or relocated_from_url is not None
+                
+                if should_create_version:
                     new_version = self.version_manager.create_version(
                         db=db,
                         monitored_url=monitored_url,
@@ -342,6 +345,25 @@ class MonitoringOrchestrator:
                                 revision_date=title_result.revision_date,
                                 confidence=title_result.combined_confidence
                             )
+                            
+                            # Re-run form matching now that we have the new title
+                            if previous_version and match_result:
+                                updated_match = self.form_matcher.match_forms(
+                                    old_text=previous_text,
+                                    new_text=extracted_text,
+                                    old_form_number=previous_version.form_number,
+                                    new_form_number=title_result.form_number,
+                                    old_title=previous_version.formatted_title,
+                                    new_title=title_result.formatted_title
+                                )
+                                # Update match_result with the new classification
+                                match_result = updated_match
+                                logger.info(
+                                    "Updated form match with titles",
+                                    match_type=match_result.match_type.value,
+                                    old_title=previous_version.formatted_title,
+                                    new_title=title_result.formatted_title
+                                )
                         else:
                             logger.warning(
                                 "Title extraction failed",
@@ -384,6 +406,40 @@ class MonitoringOrchestrator:
                                     error=diff_result.error
                                 )
                     
+                    # If URL relocated but content unchanged, create a special change result
+                    if relocated_from_url and not change_result.changed:
+                        # Create a relocation change result
+                        change_result = ChangeResult(
+                            changed=True,
+                            change_type="relocated",
+                            pdf_hash_changed=False,
+                            text_hash_changed=False,
+                            diff_summary=f"Form relocated from {relocated_from_url} to {pdf_url}. Content unchanged."
+                        )
+                        logger.info(
+                            "URL relocation detected (content unchanged)",
+                            old_url=relocated_from_url,
+                            new_url=pdf_url
+                        )
+                        # Since content is unchanged, this is definitely the same form
+                        # Create a match result to indicate this
+                        if previous_version:
+                            from services.form_matcher import MatchType, MatchResult
+                            # Use title extraction results if available (title extraction happens before this)
+                            new_form_number = new_version.form_number if hasattr(new_version, 'form_number') else None
+                            new_title = new_version.formatted_title if hasattr(new_version, 'formatted_title') else None
+                            match_result = MatchResult(
+                                match_type=MatchType.FORM_NUMBER_MATCH,
+                                similarity_score=1.0,  # 100% identical content
+                                form_number_old=previous_version.form_number,
+                                form_number_new=new_form_number,
+                                title_old=previous_version.formatted_title,
+                                title_new=new_title,
+                                confidence=1.0,
+                                reason="Content identical - same form at new location",
+                                changed_sections=[]
+                            )
+                    
                     # Record change with enhanced fields
                     change_log = self.version_manager.record_change(
                         db=db,
@@ -394,12 +450,22 @@ class MonitoringOrchestrator:
                     )
                     
                     # Update with enhanced change detection fields
-                    if change_log and match_result:
-                        change_log.match_type = match_result.match_type.value
-                        change_log.similarity_score = match_result.similarity_score
+                    if change_log:
+                        if match_result:
+                            change_log.match_type = match_result.match_type.value
+                            change_log.similarity_score = match_result.similarity_score
+                        elif not previous_version:
+                            # First version - classify as new form
+                            change_log.match_type = "new_form"
                         
                     if change_log and relocated_from_url:
                         change_log.relocated_from_url = relocated_from_url
+                        logger.info(
+                            "Relocation recorded in change log",
+                            change_log_id=change_log.id,
+                            old_url=relocated_from_url,
+                            new_url=pdf_url
+                        )
                         
                     if change_log and diff_image_path:
                         change_log.diff_image_path = diff_image_path
@@ -420,12 +486,28 @@ class MonitoringOrchestrator:
                         "Change detected and stored",
                         change_type=change_result.change_type,
                         version=new_version.version_number,
-                        match_type=match_result.match_type.value if match_result else None
+                        match_type=match_result.match_type.value if match_result else None,
+                        relocated=relocated_from_url is not None
                     )
                     
                     # Print user-friendly summary
-                    print(f"\n  📋 CHANGE DETECTED:")
-                    print(f"     Type: {change_result.change_type}")
+                    if relocated_from_url:
+                        print(f"\n  📍 URL RELOCATION DETECTED:")
+                        print(f"     Old URL: {relocated_from_url}")
+                        print(f"     New URL: {pdf_url}")
+                        if change_result.change_type == "relocated":
+                            print(f"     Content: Unchanged (same form at new location)")
+                        else:
+                            print(f"     Type: {change_result.change_type}")
+                    elif change_result.change_type == "format_only":
+                        print(f"\n  🔄 FORMAT-ONLY CHANGE DETECTED:")
+                        print(f"     Type: Format-only (binary changed, text unchanged)")
+                        print(f"     Note: PDF binary hash changed but extracted text is identical")
+                        print(f"     Action: No semantic changes - no action needed")
+                    else:
+                        print(f"\n  📋 CHANGE DETECTED:")
+                        print(f"     Type: {change_result.change_type}")
+                    
                     if match_result:
                         print(f"     Match: {match_result.match_type.value.replace('_', ' ').title()}")
                         print(f"     Similarity: {match_result.similarity_score:.1%}")
@@ -435,8 +517,6 @@ class MonitoringOrchestrator:
                         print(f"     Title: {new_version.formatted_title}")
                     if new_version.form_number:
                         print(f"     Form #: {new_version.form_number}")
-                    if relocated_from_url:
-                        print(f"     📍 Relocated from: {relocated_from_url}")
                 else:
                     logger.info("No changes detected")
                     print(f"\n  ✓ No changes detected")
@@ -519,18 +599,79 @@ def cmd_init():
 
 
 def cmd_seed():
-    """Seed sample URLs."""
-    logger.info("Seeding sample URLs")
+    """Seed test form URLs (localhost:5001 test forms only)."""
+    logger.info("Seeding test form URLs")
     settings.ensure_directories()
     run_migrations()
     
+    # Test forms configuration
+    test_pdfs = [
+        {
+            "name": "Test CIV-001 - Motion to Dismiss",
+            "url": "http://localhost:5001/pdfs/civ-001.pdf",
+            "description": "Test form: Motion to Dismiss",
+            "parent_page_url": "http://localhost:5001/pdfs/"
+        },
+        {
+            "name": "Test CIV-002 - Petition for Custody",
+            "url": "http://localhost:5001/pdfs/civ-002.pdf",
+            "description": "Test form: Petition for Custody",
+            "parent_page_url": "http://localhost:5001/pdfs/"
+        },
+        {
+            "name": "Test CIV-003 - Petition for Appeal",
+            "url": "http://localhost:5001/pdfs/civ-003.pdf",
+            "description": "Test form: Petition for Appeal",
+            "parent_page_url": "http://localhost:5001/pdfs/"
+        }
+    ]
+    
     db = SessionLocal()
     try:
-        seed_sample_urls(db)
+        # Remove non-test URLs first
+        non_test_urls = db.query(MonitoredURL).filter(
+            ~MonitoredURL.url.like("http://localhost:5001%")
+        ).all()
+        
+        if non_test_urls:
+            print(f"\n🧹 Removing {len(non_test_urls)} non-test URLs...")
+            for url in non_test_urls:
+                # Delete associated change logs and versions first
+                db.query(ChangeLog).filter_by(monitored_url_id=url.id).delete()
+                db.query(PDFVersion).filter_by(monitored_url_id=url.id).delete()
+                db.delete(url)
+            db.commit()
+        
+        # Add test forms
+        print("\n📋 Setting up test forms...")
+        for pdf in test_pdfs:
+            existing = db.query(MonitoredURL).filter_by(url=pdf["url"]).first()
+            if not existing:
+                m = MonitoredURL(**pdf)
+                db.add(m)
+                print(f"  ✓ Added: {pdf['name']}")
+            else:
+                # Update URL if it was changed (e.g., from civ-003-final.pdf)
+                if existing.url != pdf["url"]:
+                    existing.url = pdf["url"]
+                    print(f"  ✓ Fixed URL: {pdf['name']}")
+                else:
+                    print(f"  • Exists: {pdf['name']}")
+        
+        db.commit()
+        
+        total = db.query(MonitoredURL).count()
+        print(f"\n=== Test Forms Ready ({total} URLs) ===")
+        print("\nNext steps:")
+        print("  1. Start test server: python test_server.py")
+        print("  2. Run monitoring: python cli.py run")
+        print("  3. Test scenarios: python test_site/simulate_update.py <scenario>")
+        print("     Scenarios: title, content, relocate, new_form, format_only, revert")
+        
     finally:
         db.close()
     
-    logger.info("Sample URLs seeded")
+    logger.info("Test form URLs seeded")
 
 
 def cmd_run(url_id: Optional[int] = None):
@@ -560,6 +701,52 @@ def cmd_run(url_id: Optional[int] = None):
             for detail in results["details"]:
                 status = "✓" if detail["success"] else "✗"
                 print(f"  {status} [{detail['url_id']}] {detail['name']}")
+        
+    finally:
+        db.close()
+
+
+def cmd_reset():
+    """Reset test environment: clear versions/changes and revert test PDFs."""
+    import subprocess
+    
+    logger.info("Resetting test environment")
+    settings.ensure_directories()
+    run_migrations()
+    
+    # Get project root directory
+    project_dir = Path(__file__).parent
+    
+    db = SessionLocal()
+    try:
+        # Clear all versions and change logs
+        change_count = db.query(ChangeLog).delete()
+        version_count = db.query(PDFVersion).delete()
+        db.commit()
+        
+        print(f"\n🧹 Cleared {version_count} versions and {change_count} change logs")
+        
+        # Revert test PDFs to baseline
+        print("\n📋 Reverting test PDFs to baseline...")
+        result = subprocess.run(
+            [sys.executable, "test_site/simulate_update.py", "revert"],
+            capture_output=True,
+            text=True,
+            cwd=project_dir
+        )
+        
+        if result.returncode == 0:
+            # Show relevant output
+            for line in result.stdout.split('\n'):
+                if line.strip() and ('✓' in line or '•' in line or 'Reverted' in line):
+                    print(f"  {line.strip()}")
+            print("\n✅ Test environment reset complete!")
+            print("\nNext steps:")
+            print("  1. Ensure test server is running: python test_server.py")
+            print("  2. Run monitoring to set baseline: python cli.py run")
+        else:
+            print(f"⚠️  Warning: Could not revert PDFs: {result.stderr}")
+            print("  You may need to run: python test_site/simulate_update.py revert")
         
     finally:
         db.close()
@@ -607,22 +794,32 @@ def main():
         epilog="""
 Commands:
   init      Initialize database
-  seed      Seed sample URLs
+  seed      Add test form URLs (localhost:5001)
   run       Run monitoring cycle
+  reset     Reset test environment (clear data + revert PDFs)
   status    Show status of all URLs
 
 Examples:
-  python cli.py init
-  python cli.py seed
-  python cli.py run
-  python cli.py run --url-id 1
-  python cli.py status
+  python cli.py init          # Initialize database
+  python cli.py seed          # Add test forms
+  python cli.py run           # Run monitoring on all URLs
+  python cli.py run --url-id 1  # Monitor specific URL
+  python cli.py reset         # Clear data and reset test PDFs
+  python cli.py status        # Show URL status
+
+Test workflow:
+  1. python cli.py seed       # Add test forms
+  2. python test_server.py    # Start test server (in another terminal)
+  3. python cli.py run        # Establish baseline
+  4. python test_site/simulate_update.py <scenario>  # Run test scenario
+  5. python cli.py run        # Detect changes
+  6. python cli.py reset      # Reset for next test
         """
     )
     
     parser.add_argument(
         "command",
-        choices=["init", "seed", "run", "status"],
+        choices=["init", "seed", "run", "reset", "status"],
         help="Command to execute"
     )
     
@@ -640,6 +837,8 @@ Examples:
         cmd_seed()
     elif args.command == "run":
         cmd_run(args.url_id)
+    elif args.command == "reset":
+        cmd_reset()
     elif args.command == "status":
         cmd_status()
 

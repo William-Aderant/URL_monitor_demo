@@ -68,14 +68,34 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "recent_change": recent_change
         })
     
-    return templates.TemplateResponse(
+    # Check for query parameters
+    query_params = request.query_params
+    message = None
+    message_type = None
+    
+    if "error" in query_params:
+        import urllib.parse
+        message = urllib.parse.unquote(query_params["error"])
+        message_type = "error"
+    elif "refresh" in query_params:
+        message = "Monitoring cycle completed successfully!"
+        message_type = "success"
+    
+    response = templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "urls": url_data,
-            "now": datetime.utcnow()
+            "now": datetime.utcnow(),
+            "message": message,
+            "message_type": message_type
         }
     )
+    # Prevent caching
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @router.get("/url/{url_id}", response_class=HTMLResponse)
@@ -119,7 +139,8 @@ async def changes_page(request: Request, db: Session = Depends(get_db)):
         
         change_data.append({
             "change": change,
-            "url_name": url.name if url else "Unknown"
+            "url_name": url.name if url else "Unknown",
+            "url_url": url.url if url else ""
         })
     
     return templates.TemplateResponse(
@@ -140,15 +161,23 @@ async def run_monitoring_form(
 ):
     """
     HTML form handler for triggering monitoring run.
-    Redirects back to dashboard after completion.
+    Redirects back to dashboard after completion with cache-busting.
     """
     from cli import MonitoringOrchestrator
+    from datetime import datetime
     
-    orchestrator = MonitoringOrchestrator()
-    results = orchestrator.run_cycle(db, url_id)
-    
-    # Redirect back to dashboard
-    return RedirectResponse(url="/", status_code=303)
+    try:
+        orchestrator = MonitoringOrchestrator()
+        results = orchestrator.run_cycle(db, url_id)
+        
+        # Redirect back to dashboard with timestamp to force refresh
+        timestamp = int(datetime.utcnow().timestamp())
+        return RedirectResponse(url=f"/?refresh={timestamp}", status_code=303)
+    except Exception as e:
+        # On error, redirect with error message
+        import urllib.parse
+        error_msg = urllib.parse.quote(str(e))
+        return RedirectResponse(url=f"/?error={error_msg}", status_code=303)
 
 
 # ============================================================================

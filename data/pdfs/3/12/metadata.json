@@ -1,0 +1,15 @@
+{
+  "url": "http://localhost:5001/pdfs/civ-003.pdf",
+  "version_number": 4,
+  "pdf_hash": "f2e0d6aed290aa6f67a1c26e8c0d6b5886c3370b3b18ccd32b97c97a2976c889",
+  "text_hash": "1638b4ecfe7d037467ad341ba296e32d8bfda55a05ae760f443dd07f01b4a424",
+  "page_hashes": [
+    "1638b4ecfe7d037467ad341ba296e32d8bfda55a05ae760f443dd07f01b4a424"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 779,
+  "file_size": 6178,
+  "stored_at": "2026-01-12T19:50:34.541047"
+}

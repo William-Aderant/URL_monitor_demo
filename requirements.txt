@@ -10,7 +10,6 @@ sqlalchemy>=2.0.0
 # HTTP client
 httpx>=0.24.0
 requests>=2.31.0
-firecrawl-py>=1.0.0
 
 # PDF processing
 PyMuPDF>=1.23.0

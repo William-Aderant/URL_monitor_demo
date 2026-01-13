@@ -1,10 +1,10 @@
 """Fetcher module for retrieving PDFs from URLs."""
 
-from fetcher.firecrawl_client import FirecrawlClient
+from fetcher.aws_web_scraper import AWSWebScraper
 from fetcher.pdf_downloader import PDFDownloader
 
 __all__ = [
-    "FirecrawlClient",
+    "AWSWebScraper",
     "PDFDownloader",
 ]
 

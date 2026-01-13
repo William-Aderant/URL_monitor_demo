@@ -14,13 +14,11 @@ load_dotenv()
 class Settings:
     """Application settings loaded from environment."""
     
-    # Firecrawl
-    FIRECRAWL_API_KEY: str = os.getenv("FIRECRAWL_API_KEY", "")
-    
     # AWS
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
+    AWS_LAMBDA_SCRAPER_FUNCTION: str = os.getenv("AWS_LAMBDA_SCRAPER_FUNCTION", "")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///data/url_monitor.db")
@@ -49,14 +47,15 @@ class Settings:
         """Validate required settings. Returns list of missing/invalid settings."""
         issues = []
         
-        if not cls.FIRECRAWL_API_KEY:
-            issues.append("FIRECRAWL_API_KEY is not set")
-        
-        # AWS credentials are optional (only needed for OCR fallback)
+        # AWS credentials are optional (only needed for Lambda scraper or OCR fallback)
         # but warn if partially configured
         aws_vars = [cls.AWS_ACCESS_KEY_ID, cls.AWS_SECRET_ACCESS_KEY]
         if any(aws_vars) and not all(aws_vars):
             issues.append("AWS credentials partially configured - need both ACCESS_KEY_ID and SECRET_ACCESS_KEY")
+        
+        # AWS Lambda function name is optional (will fall back to direct HTTP if not set)
+        if cls.AWS_LAMBDA_SCRAPER_FUNCTION and not all(aws_vars):
+            issues.append("AWS_LAMBDA_SCRAPER_FUNCTION is set but AWS credentials are missing")
         
         return issues
 

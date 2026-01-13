@@ -40,7 +40,7 @@ from config import settings
 from db.database import get_db, init_db, SessionLocal
 from db.models import MonitoredURL, PDFVersion, ChangeLog
 from db.migrations import run_migrations, seed_sample_urls
-from fetcher.firecrawl_client import FirecrawlClient
+from fetcher.aws_web_scraper import AWSWebScraper
 from fetcher.pdf_downloader import PDFDownloader
 from pdf_processing.normalizer import PDFNormalizer
 from pdf_processing.text_extractor import TextExtractor
@@ -69,7 +69,7 @@ class MonitoringOrchestrator:
     
     def __init__(self):
         """Initialize orchestrator with all required components."""
-        self.firecrawl = None  # Lazy init
+        self.aws_scraper = None  # Lazy init
         self.downloader = PDFDownloader()
         self.normalizer = PDFNormalizer()
         self.text_extractor = TextExtractor()
@@ -86,11 +86,11 @@ class MonitoringOrchestrator:
         
         logger.info("MonitoringOrchestrator initialized")
     
-    def _get_firecrawl(self) -> FirecrawlClient:
-        """Lazy-load Firecrawl client."""
-        if self.firecrawl is None:
-            self.firecrawl = FirecrawlClient()
-        return self.firecrawl
+    def _get_aws_scraper(self) -> AWSWebScraper:
+        """Lazy-load AWS web scraper client."""
+        if self.aws_scraper is None:
+            self.aws_scraper = AWSWebScraper()
+        return self.aws_scraper
     
     def process_url(self, db, monitored_url: MonitoredURL) -> bool:
         """
@@ -116,11 +116,11 @@ class MonitoringOrchestrator:
             # Step 1: Fetch PDF
             pdf_url = monitored_url.url
             
-            # If URL is not a direct PDF, use Firecrawl to find PDF link
+            # If URL is not a direct PDF, use AWS web scraper to find PDF link
             if not pdf_url.lower().endswith('.pdf'):
                 logger.info("URL is not direct PDF, scraping for PDF link")
-                firecrawl = self._get_firecrawl()
-                scrape_result = firecrawl.scrape_url(monitored_url.url)
+                aws_scraper = self._get_aws_scraper()
+                scrape_result = aws_scraper.scrape_url(monitored_url.url)
                 
                 if not scrape_result.success:
                     logger.error(

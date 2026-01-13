@@ -5,7 +5,7 @@ A production-grade automated PDF monitoring system for court forms. Detects mean
 ## Features
 
 - **URL Registry**: Monitor multiple court form PDFs from a configurable list
-- **Smart Fetching**: Uses Firecrawl API to handle JavaScript-rendered pages and extract PDF links
+- **Smart Fetching**: Uses AWS Lambda web scraper to handle JavaScript-rendered pages and extract PDF links (falls back to direct HTTP if Lambda not configured)
 - **PDF Normalization**: Strips metadata and normalizes structure for deterministic comparison
 - **Text Extraction**: Uses pdfplumber/pdfminer with AWS Textract OCR fallback
 - **Change Detection**: Hash-based comparison with per-page granularity
@@ -22,7 +22,7 @@ A production-grade automated PDF monitoring system for court forms. Detects mean
 │                                                                  │
 │  ┌──────────┐   ┌──────────────┐   ┌────────────────────────┐  │
 │  │   URL    │   │   Fetcher    │   │    PDF Processing      │  │
-│  │ Registry │──▶│  (Firecrawl) │──▶│  qpdf → pikepdf        │  │
+│  │ Registry │──▶│ (AWS Lambda) │──▶│  qpdf → pikepdf        │  │
 │  │ (SQLite) │   │              │   │  pdfplumber → Textract │  │
 │  └──────────┘   └──────────────┘   └────────────────────────┘  │
 │                                              │                   │
@@ -44,7 +44,7 @@ A production-grade automated PDF monitoring system for court forms. Detects mean
 
 ## How Change Detection Works
 
-1. **Download**: Fetch PDF from URL (via Firecrawl for complex pages or direct download)
+1. **Download**: Fetch PDF from URL (via AWS Lambda web scraper for complex pages or direct download)
 
 2. **Normalize**: 
    - Run `qpdf` to linearize and normalize PDF structure
@@ -75,8 +75,7 @@ A production-grade automated PDF monitoring system for court forms. Detects mean
 
 - Python 3.11+
 - qpdf (system package)
-- AWS account (for Textract OCR fallback)
-- Firecrawl API key
+- AWS account (for Lambda web scraper and Textract OCR fallback)
 
 ## Installation
 
@@ -111,13 +110,13 @@ qpdf --version
 Create a `.env` file in the project root:
 
 ```env
-# Firecrawl API
-FIRECRAWL_API_KEY=fc-your-api-key-here
-
-# AWS Credentials (for Textract OCR fallback)
+# AWS Credentials (for Lambda web scraper and Textract OCR fallback)
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
+
+# AWS Lambda Web Scraper Function (optional - falls back to direct HTTP if not set)
+# AWS_LAMBDA_SCRAPER_FUNCTION=your-lambda-function-name
 
 # Database
 DATABASE_URL=sqlite:///data/url_monitor.db
@@ -259,7 +258,7 @@ url_monitor/
 │   ├── models.py          # SQLAlchemy models
 │   └── migrations.py      # Schema management
 ├── fetcher/
-│   ├── firecrawl_client.py  # Firecrawl API wrapper
+│   ├── aws_web_scraper.py   # AWS Lambda web scraper
 │   └── pdf_downloader.py    # HTTP download handler
 ├── pdf_processing/
 │   ├── normalizer.py      # qpdf + pikepdf normalization
@@ -313,9 +312,11 @@ which qpdf
 qpdf --version
 ```
 
-### Firecrawl API errors
+### AWS Lambda web scraper errors
 
-- Check API key is valid and has remaining credits
+- If using Lambda function, verify function name and IAM permissions
+- Check AWS credentials are valid and have Lambda invoke permissions
+- Falls back to direct HTTP if Lambda is not configured
 - Some URLs may be blocked - try direct PDF URLs instead
 
 ### OCR not working

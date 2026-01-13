@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-564.pdf",
+  "version_number": 1,
+  "pdf_hash": "6c5937178c0ad5d4aa28dcb0fac0dfff16e2138db9c9ce4598ebfef6b91696f5",
+  "text_hash": "b34869afb50c67b74adaf8ff6d7306ac3290d616b614080f7d29c2e2b4752593",
+  "page_hashes": [
+    "b34869afb50c67b74adaf8ff6d7306ac3290d616b614080f7d29c2e2b4752593"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1357,
+  "file_size": 249538,
+  "stored_at": "2026-01-13T14:34:20.885427"
+}

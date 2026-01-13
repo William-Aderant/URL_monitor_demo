@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-670.pdf",
+  "version_number": 1,
+  "pdf_hash": "deaf6ab61569029ad57bc8ce10c35cfc6e3810249ee88174d4b9d2d9a2e31a7e",
+  "text_hash": "25ff2ebd68d3abc4a43b30543de6f2719c21d130ec59fe929f20d5b0ec792231",
+  "page_hashes": [
+    "15b9c60a6dc05a746b87ab94199728c49e2d79b5abc2e3664e899982ac4223f1",
+    "9704646c7ceef27c9454625975244fc6e81896f9c1291ebe4415bad846a26476"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2285,
+  "file_size": 143826,
+  "stored_at": "2026-01-13T14:34:42.078661"
+}

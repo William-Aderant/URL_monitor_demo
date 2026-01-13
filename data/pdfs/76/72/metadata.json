@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-700.pdf",
+  "version_number": 1,
+  "pdf_hash": "f3f29ada4b17f3901daf31c35bf81c40037b2b3bf0fa321700ea6d1c49aa5ea3",
+  "text_hash": "8716c1513649ba12992161c1b8dd9e9a6817da0c70e1d745489a711cfe01b729",
+  "page_hashes": [
+    "edb5626d440caa3ba27c41f70e72d89d2e1942d1fddc3f3cf8828b5416272cfe",
+    "ee2577a503ffe5b0707bbe6cdba83120d52115deabe8381eb905bcf30994889b",
+    "a1fcb0002a970d093cf511754c09e384ebb81da2bd8fcf38c7337d6fc695af46"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 5458,
+  "file_size": 153589,
+  "stored_at": "2026-01-13T14:36:03.939541"
+}

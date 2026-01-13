@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-810.pdf",
+  "version_number": 1,
+  "pdf_hash": "be855f46f3f82f0ac31e62391a8098f3c91e77cf7a521cd41051e8d9c23cc63f",
+  "text_hash": "a4b9cfd9e34e011436e30fa4a7a15128541a4cbc82035463d2a1e3d34a7076ff",
+  "page_hashes": [
+    "2f71bab9328a92a4fce6c934d31b62cd56f5c3cf60324124a637f37f193622bd",
+    "61279308705db27fdad2bfae5e7287beb148939935051ecd9e852271dcceed76"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1687,
+  "file_size": 285653,
+  "stored_at": "2026-01-13T14:33:54.967404"
+}

@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-735.pdf",
+  "version_number": 1,
+  "pdf_hash": "b34dc51de7428e2ce4875d0aa09808681ed75be2a10d3a6211668ab7aa56db45",
+  "text_hash": "fa67f46003826cb862e1c84be01460e27c18d4a6828136e0ae8df3fd11dd5849",
+  "page_hashes": [
+    "20ce3f1b9de5f850e8d7e4a4f97aa54e0e4d5d9d8cdda94dde76c795cecbacb9",
+    "89318f474b20230e1586cca80c50b4b0467dc494fc001a917b35c57d70e38c3a"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 3074,
+  "file_size": 343491,
+  "stored_at": "2026-01-13T14:31:57.667406"
+}

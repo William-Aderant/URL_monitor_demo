@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-694.pdf",
+  "version_number": 1,
+  "pdf_hash": "78983a3f0ede9d2c75c0a9c08ba7c5b5516f654b0df42608de0fa7616a0166b5",
+  "text_hash": "28e5c115a6e03bc8a2244207f408c0fe805ebb616338f9ee81c7125bb45e026f",
+  "page_hashes": [
+    "df7daa90b8cf70ed307bb61833eded7181763d373418eb74497a9c9ec9364637",
+    "ff8ec1c5e16b41473a2f996c77b8294fcfc13ffa10b75aababfa900c327c62bb",
+    "87bfb11aa2fbcd3666434cf3495dccac5695a1ee0c30a15d5ad43bd3626dc86f"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 5564,
+  "file_size": 158229,
+  "stored_at": "2026-01-13T14:36:46.786936"
+}

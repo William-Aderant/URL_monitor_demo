@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-790.pdf",
+  "version_number": 1,
+  "pdf_hash": "d6d75c7faac25d14d4cb46c8da784d55ac328112e85077cc0371851da6eefed9",
+  "text_hash": "0e13c073a07e4cf9a68ff09b11b71adfcb354f008ab4fc1ce8b43fe8cf063541",
+  "page_hashes": [
+    "b2f987fe5dd10f6ee4c7914ae8725d3900da9e9eac1b553d05d78a6e22bcaa47",
+    "1f71d66e7c511c43d71edf3caeabf9b2831d7d5920f612a33c4d10300ff0eb38"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 3133,
+  "file_size": 209640,
+  "stored_at": "2026-01-13T14:31:48.545142"
+}

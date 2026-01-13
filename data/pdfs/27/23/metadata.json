@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-661.pdf",
+  "version_number": 1,
+  "pdf_hash": "b86a33e79f517fcb4ade848a9c369c23748a8cf1aef0680def9d01c7493b82f3",
+  "text_hash": "54da2790c3c1444ad3784196ffb38db830904d50368be92b2bd081e4d8ea9db1",
+  "page_hashes": [
+    "c59ed57d41864ad1792f8eb8426d24d7b59676612530c04fb642febcafef4da0",
+    "2622c631e3fad36f98a94df4ecc308cfd109063cc80afddec0501a3439e16e5b"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2684,
+  "file_size": 100650,
+  "stored_at": "2026-01-13T14:32:37.832300"
+}

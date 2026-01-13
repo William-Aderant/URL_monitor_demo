@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-515.pdf",
+  "version_number": 1,
+  "pdf_hash": "fedf7b69ff7a16ffe421ab9bb9956619d55aca4a1fd4888505830da0b08c8bd8",
+  "text_hash": "34f4bc626d692d39611cdec873902583c2ab421a09ae34f10ca664b97ac4ea37",
+  "page_hashes": [
+    "34f4bc626d692d39611cdec873902583c2ab421a09ae34f10ca664b97ac4ea37"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1473,
+  "file_size": 137418,
+  "stored_at": "2026-01-13T14:31:23.790178"
+}

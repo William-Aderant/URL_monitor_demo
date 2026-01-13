@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-571.pdf",
+  "version_number": 1,
+  "pdf_hash": "28bd375395fb21fbaab2b9a52f99b9d4dbb57097b38abdaba5eaeb18d833632c",
+  "text_hash": "614a1796046d7ac4bfb30742077785cb972cccd018f13dea8dde5086bf3c1fe0",
+  "page_hashes": [
+    "614a1796046d7ac4bfb30742077785cb972cccd018f13dea8dde5086bf3c1fe0"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1236,
+  "file_size": 122794,
+  "stored_at": "2026-01-13T14:37:33.826839"
+}

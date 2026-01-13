@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-857.pdf",
+  "version_number": 1,
+  "pdf_hash": "57ff8e31a238b46b7ed9338da08cd2294ccf802db616812e01f87ee66ce3c827",
+  "text_hash": "eb81a4936c8b9cc33c3c5902b61a6ff6d79d91ba71c63077673a214d231a6f62",
+  "page_hashes": [
+    "eb81a4936c8b9cc33c3c5902b61a6ff6d79d91ba71c63077673a214d231a6f62"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1158,
+  "file_size": 133115,
+  "stored_at": "2026-01-13T14:37:15.855979"
+}

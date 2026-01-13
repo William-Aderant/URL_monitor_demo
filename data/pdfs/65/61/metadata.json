@@ -1,0 +1,19 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-750.pdf",
+  "version_number": 1,
+  "pdf_hash": "02299c7881de4e596975801f06771a5175a34b4aa3f8005406972d98affeb019",
+  "text_hash": "c6916c3a87e4c9d63c75b880f746672aa4883f4c7f05c92f2ac66591844824e4",
+  "page_hashes": [
+    "1623686b4fa9945191e3ffd605f5e47ef6dc2b5f356dc9302764e397ae58cf51",
+    "d4c4808286ae841a0f3e2f5a3640968c3d6127e7554da095b6150a4c3662c546",
+    "2e3ce487fd73c0783d50c8b46b2584b86e5f350d88ebd7dbe6e982fa3cd76a60",
+    "7f7b41d0775c8dcc35d18f1562a709a995a1244484213dc16290c38497eba4ae",
+    "eccc3318a42bb7be81fb731f26f0ae938f1c935afefaf1d444dac51cc8897829"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 5,
+  "text_length": 10707,
+  "file_size": 421415,
+  "stored_at": "2026-01-13T14:35:17.685404"
+}

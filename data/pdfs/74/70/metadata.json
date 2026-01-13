@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-300.pdf",
+  "version_number": 1,
+  "pdf_hash": "169249a7c76c586582aafebf08a71fd59fd3b11691836663c01b2d6b9639a00a",
+  "text_hash": "0e86ac3ef1caa2a8fa1b98d67a466298535342496ed4e9ba123031d512a9a07d",
+  "page_hashes": [
+    "0e86ac3ef1caa2a8fa1b98d67a466298535342496ed4e9ba123031d512a9a07d"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 2017,
+  "file_size": 74466,
+  "stored_at": "2026-01-13T14:35:55.471798"
+}

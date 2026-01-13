@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-650.pdf",
+  "version_number": 1,
+  "pdf_hash": "651c5460eed6f1afcb961cea7d9b377d3217636a1fcc01b9d1f58b64d0d434d5",
+  "text_hash": "9a0afded3ea4de8cee82f25a1aa77a86253ceb355855942c98b5068c88a64bfb",
+  "page_hashes": [
+    "9a0afded3ea4de8cee82f25a1aa77a86253ceb355855942c98b5068c88a64bfb"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1345,
+  "file_size": 262583,
+  "stored_at": "2026-01-13T14:37:04.271362"
+}

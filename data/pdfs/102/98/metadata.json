@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-101.pdf",
+  "version_number": 1,
+  "pdf_hash": "c75cd5df16fe6336f35e8fcd2710253b547e68dfee90fe91fe26c8cb937a0613",
+  "text_hash": "0c25d6766c4f22ef4bd15416d61e4d8c6051921df70bf0a54e49720d20fe1e33",
+  "page_hashes": [
+    "0c25d6766c4f22ef4bd15416d61e4d8c6051921df70bf0a54e49720d20fe1e33"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1254,
+  "file_size": 628281,
+  "stored_at": "2026-01-13T14:37:50.356040"
+}

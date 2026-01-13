@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-622.pdf",
+  "version_number": 1,
+  "pdf_hash": "ea0978084d2645935b735a812d4d7bae008fefb1d9cb58cdedecf4494a9abbdd",
+  "text_hash": "ac133400ccc652866331a0b2b483af7c4084e190e61be672156c6db74673bd7b",
+  "page_hashes": [
+    "ac133400ccc652866331a0b2b483af7c4084e190e61be672156c6db74673bd7b"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 996,
+  "file_size": 246793,
+  "stored_at": "2026-01-13T14:31:16.539577"
+}

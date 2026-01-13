@@ -1,0 +1,18 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-203.pdf",
+  "version_number": 1,
+  "pdf_hash": "8e79d9d212ea28e1c3db7276fee0f79368f59cf95ae78f56808941d461e88c45",
+  "text_hash": "ac14796eb337cb65de517fc649fb659d1b695e52ab14d65eab3d5f2d90b678a0",
+  "page_hashes": [
+    "a404b20a6a099539781460f933b86944d9fbeaf5055c5920dd110b3d5a9b48a7",
+    "3d86397d51478b927ad5bb83eb311010a2f7010810c9a1cf1d6d483aa5e05785",
+    "c3837f97a2c008c496572b03e1c3109c89bb8d6a5ebf83989f383bda6e258a74",
+    "0d1bcac623e832cde139ef1ce7e285de067c4b6d5a25cd204feb929036278dd1"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 4,
+  "text_length": 5168,
+  "file_size": 183971,
+  "stored_at": "2026-01-13T14:33:21.522694"
+}

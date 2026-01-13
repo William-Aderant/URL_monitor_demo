@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-731-1.pdf",
+  "version_number": 1,
+  "pdf_hash": "c79dc75980ffee31b04919bddbdabdb38f35f1249e00d1d8d13038a74a67131e",
+  "text_hash": "7a569ab0d8d353ddcc921000935974f9a19c36a5ec13fe0e4aa2325152173a94",
+  "page_hashes": [
+    "c05ffdabbcd3dc35fd0d37610c332585ad89081cb559575f1fc6d859031e2b9e",
+    "2e1d78424fcb6f0d10cab2fd2588b9ef3b79f3e6836c0476e72c34d90625df7f"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 3870,
+  "file_size": 107579,
+  "stored_at": "2026-01-13T14:32:42.041685"
+}

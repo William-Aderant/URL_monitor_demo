@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-702.pdf",
+  "version_number": 1,
+  "pdf_hash": "33b81447749438e64c16d3ecdb919baa5900ac60ed20c2c45b2f0c454668425d",
+  "text_hash": "2e24240814e51cc9dd578855af2806ce8abafe8464ee9b2bf75b5a3ac36c0005",
+  "page_hashes": [
+    "2e24240814e51cc9dd578855af2806ce8abafe8464ee9b2bf75b5a3ac36c0005"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1541,
+  "file_size": 78274,
+  "stored_at": "2026-01-13T14:31:19.980926"
+}

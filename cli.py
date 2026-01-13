@@ -151,12 +151,22 @@ class MonitoringOrchestrator:
                         error=download_result.error
                     )
                     
+                    print(f"\n  ⚠️  Download failed: {download_result.error}")
+                    print(f"  🔍 Searching for relocated form...")
+                    
                     # Get previous version's form number for matching
                     previous_version = self.version_manager.get_latest_version(db, monitored_url.id)
                     form_number = previous_version.form_number if previous_version else None
                     form_title = previous_version.formatted_title if previous_version else None
                     
-                    # Try to find relocated form
+                    # Also try to extract form number from the URL if we don't have one
+                    if not form_number:
+                        form_number = self.link_crawler.extract_form_number(pdf_url)
+                    
+                    if form_number:
+                        print(f"     Looking for form: {form_number}")
+                    
+                    # Try to find relocated form with enhanced multi-level crawler
                     crawl_result = self.link_crawler.find_relocated_form(
                         original_url=pdf_url,
                         form_number=form_number,
@@ -168,8 +178,15 @@ class MonitoringOrchestrator:
                         logger.info(
                             "Found relocated form",
                             new_url=crawl_result.matched_url,
-                            reason=crawl_result.match_reason
+                            reason=crawl_result.match_reason,
+                            pages_crawled=crawl_result.pages_crawled
                         )
+                        
+                        print(f"  ✅ Found relocated form!")
+                        print(f"     New URL: {crawl_result.matched_url}")
+                        print(f"     Reason: {crawl_result.match_reason}")
+                        if crawl_result.pages_crawled:
+                            print(f"     Pages searched: {crawl_result.pages_crawled}")
                         
                         # Try downloading from new URL
                         relocated_from_url = pdf_url
@@ -180,6 +197,19 @@ class MonitoringOrchestrator:
                             # Update the monitored URL to new location
                             monitored_url.url = pdf_url
                             logger.info("Updated monitored URL to new location", new_url=pdf_url)
+                    elif crawl_result.success and crawl_result.pdf_links:
+                        # Found PDFs but no match - log for manual review
+                        print(f"  ❌ No automatic match found")
+                        print(f"     PDFs found: {len(crawl_result.pdf_links)}")
+                        print(f"     Pages searched: {crawl_result.pages_crawled}")
+                        logger.warning(
+                            "No matching form found in crawl",
+                            original_url=pdf_url,
+                            pdfs_found=len(crawl_result.pdf_links),
+                            pages_crawled=crawl_result.pages_crawled
+                        )
+                    else:
+                        print(f"  ❌ Crawl failed: {crawl_result.error}")
                     
                     if not download_result.success:
                         logger.error(

@@ -1,0 +1,19 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-752.pdf",
+  "version_number": 1,
+  "pdf_hash": "0c7d1f304c40f699d486be3f3d77fc15e004283e19dff22d0f6b37a73f687b1a",
+  "text_hash": "194635c0e52f4a8b5c5ea49fa23b80f86d16bc53141f3a43c021dd90240df37c",
+  "page_hashes": [
+    "5d0cb7a1ae617fa3c595377825a4fa1631014e5af82737910024a48f42d77b77",
+    "cdc3a0fc48acb35cac361d5c89a84e65132f13910597ff24266bc2b510467a79",
+    "0358b47a24ce4ecdb6b78d41fc9d974fc072291ba89e4c102430e7e39cf1d2f8",
+    "235e7cfed9c4cc4b2904cbd13652f4e19aa599f0974543a80cea507ecc7a7d6b",
+    "eccc3318a42bb7be81fb731f26f0ae938f1c935afefaf1d444dac51cc8897829"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 5,
+  "text_length": 10784,
+  "file_size": 444511,
+  "stored_at": "2026-01-13T14:34:46.451209"
+}

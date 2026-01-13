@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-535.pdf",
+  "version_number": 1,
+  "pdf_hash": "565e0a843342be363a89d239f557bdf6b5a4853a67719fe78f84f7b1088a5f48",
+  "text_hash": "330fe1c7838e7cedb252d914a84d88bcc37457af07054f8e1c0c7dab32af1e98",
+  "page_hashes": [
+    "502be8ea312910afed51e239a7aba3951c0ee88fdab80c6ebc9b84cec68d7143",
+    "4acb7c3a290de96a03a2411838cea45e172c4c62cdfc37205ce604b96fac79cd"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2700,
+  "file_size": 182162,
+  "stored_at": "2026-01-13T14:34:57.712029"
+}

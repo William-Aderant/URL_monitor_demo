@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-411.pdf",
+  "version_number": 1,
+  "pdf_hash": "b142d9c954a0ee83b14d09bc4f6f1ad94eb3669faab209a61f0bda4a0a5d383f",
+  "text_hash": "53626a28d931de4f85a3001682198181250bcfec172744cada5847810e8bd249",
+  "page_hashes": [
+    "53626a28d931de4f85a3001682198181250bcfec172744cada5847810e8bd249"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 2000,
+  "file_size": 55907,
+  "stored_at": "2026-01-13T14:35:43.893598"
+}

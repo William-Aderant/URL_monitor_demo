@@ -156,6 +156,10 @@ class AWSWebScraper:
                 'extract_pdf_links': True
             }
             
+            # Track API call
+            from services.api_counter import api_counter
+            api_counter.increment('lambda')
+            
             response = self.lambda_client.invoke(
                 FunctionName=self.lambda_function_name,
                 InvocationType='RequestResponse',

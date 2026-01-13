@@ -154,6 +154,10 @@ class TitleExtractor:
         Returns:
             Dictionary with 'text', 'avg_confidence', and 'line_confidences'
         """
+        # Track API call
+        from services.api_counter import api_counter
+        api_counter.increment('textract')
+        
         response = self.textract_client.detect_document_text(
             Document={"Bytes": image_bytes}
         )
@@ -216,6 +220,10 @@ Return ONLY the JSON object, no other text."""
                 }
             ]
         })
+        
+        # Track API call
+        from services.api_counter import api_counter
+        api_counter.increment('bedrock')
         
         response = self.bedrock_client.invoke_model(
             modelId="anthropic.claude-3-sonnet-20240229-v1:0",

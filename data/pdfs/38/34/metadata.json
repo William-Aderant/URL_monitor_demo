@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-792.pdf",
+  "version_number": 1,
+  "pdf_hash": "2a174e2c0962d74f11600aefd39fd59cc9228bbc0b991ad12f37140bdc196077",
+  "text_hash": "51b2823fd11e9401756bb2105155a1cfa595fcde94412ac1f35686bca14227d3",
+  "page_hashes": [
+    "51b2823fd11e9401756bb2105155a1cfa595fcde94412ac1f35686bca14227d3"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1505,
+  "file_size": 55936,
+  "stored_at": "2026-01-13T14:33:24.970404"
+}

@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-695.pdf",
+  "version_number": 1,
+  "pdf_hash": "0cf60f7e6218718c0bf653a5fd47ceb560546d1d7a5911573ef5ebf5a7471f0b",
+  "text_hash": "be38f66da46cb41331e016e316880c6e23f7d41212e6ce3703002a956ef46a06",
+  "page_hashes": [
+    "be38f66da46cb41331e016e316880c6e23f7d41212e6ce3703002a956ef46a06"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1432,
+  "file_size": 56034,
+  "stored_at": "2026-01-13T14:33:58.964333"
+}

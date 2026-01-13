@@ -95,6 +95,28 @@
             color: var(--text-primary);
         }
         
+        .api-meter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .api-meter-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .api-meter-count {
+            color: var(--accent);
+            font-weight: 700;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        
         main {
             padding: 32px 0;
         }
@@ -380,6 +402,10 @@
                 <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
                 <a href="/changes" class="{% if request.url.path == '/changes' %}active{% endif %}">Changes</a>
             </nav>
+            <div class="api-meter" id="api-meter">
+                <span class="api-meter-label">AWS Calls:</span>
+                <span class="api-meter-count" id="api-count">0</span>
+            </div>
         </div>
     </header>
     
@@ -394,6 +420,27 @@
     </footer>
     
     {% block scripts %}{% endblock %}
+    <script>
+        // Update API call counter
+        async function updateAPICounter() {
+            try {
+                const response = await fetch('/api/aws-calls');
+                const data = await response.json();
+                const countEl = document.getElementById('api-count');
+                if (countEl) {
+                    countEl.textContent = data.counts.total || 0;
+                }
+            } catch (error) {
+                console.error('Failed to update API counter:', error);
+            }
+        }
+        
+        // Update on page load
+        updateAPICounter();
+        
+        // Update every 5 seconds
+        setInterval(updateAPICounter, 5000);
+    </script>
 </body>
 </html>
 

@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-851.pdf",
+  "version_number": 1,
+  "pdf_hash": "1e3f1a8b3e9d2bf930b50578b4056c1e0284854b3068551207c872b0e83a6afd",
+  "text_hash": "cb57cdc087275619cf6425cd8a419db38af82f3b8382cf44d409b03969d239df",
+  "page_hashes": [
+    "7b1cb47af165554e2b137598fd38daa68aec62f168fd4282aee2678ccb8c8927",
+    "0d6551e74c460ba59517d46a43a5e37f073d89842dcbc65aa32999520845ebb8"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2339,
+  "file_size": 144363,
+  "stored_at": "2026-01-13T14:36:07.701192"
+}

@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-501.pdf",
+  "version_number": 1,
+  "pdf_hash": "5e4e13c2a65ab5478cd4fbf988cc002b2f01bf236a28470d8dba95d8df8ca1fa",
+  "text_hash": "03a062fb84f6f4f92554a940b5446e397fc235fe40827c5ee415fa7278da27cf",
+  "page_hashes": [
+    "03a062fb84f6f4f92554a940b5446e397fc235fe40827c5ee415fa7278da27cf"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1155,
+  "file_size": 131106,
+  "stored_at": "2026-01-13T14:37:25.722918"
+}

@@ -1,0 +1,18 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-794.pdf",
+  "version_number": 1,
+  "pdf_hash": "e5931196a35d732c67a0bcb6766d1729d93a08302b8279997940e1e8ac435a94",
+  "text_hash": "8946d745f5afcd3500beda39676d5950e822f5b3a907bc1633a4ba869b31a4a8",
+  "page_hashes": [
+    "eeb3ec25217a9971e6df20078db25cbaf4e421b82265f8ce824ca9a8fff12b9e",
+    "705f83ed325c83252c78e565829b8adbad8093ace623dbe7f853dc95cc8bbc0d",
+    "766bab763d1f043b006c301adce84cd60405c46ec5f268d6c0ee0175ab20a789",
+    "59d9a32cc78ed3cb36ac41d4b881e1905a3f9c9f0ff099470496ad9d7e708baf"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 4,
+  "text_length": 8120,
+  "file_size": 222997,
+  "stored_at": "2026-01-13T14:34:07.115117"
+}

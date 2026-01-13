@@ -184,6 +184,10 @@ class OCRFallback:
         Returns:
             OCRResult
         """
+        # Track API call
+        from services.api_counter import api_counter
+        api_counter.increment('textract')
+        
         response = self.client.detect_document_text(
             Document={'Bytes': pdf_bytes}
         )
@@ -303,6 +307,10 @@ class OCRFallback:
         
         try:
             image_bytes = image_path.read_bytes()
+            
+            # Track API call
+            from services.api_counter import api_counter
+            api_counter.increment('textract')
             
             response = self.client.detect_document_text(
                 Document={'Bytes': image_bytes}

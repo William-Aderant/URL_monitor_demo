@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-555.pdf",
+  "version_number": 1,
+  "pdf_hash": "21890b2484ac2bbd4ccb78ecbd2c629c490b95c9454b481c0f9bdd86bf2fbd3a",
+  "text_hash": "0bec74f69ac020b5a1a9b9aedf80723888b00faa8493d50dd0f13fa24832dbb4",
+  "page_hashes": [
+    "0bec74f69ac020b5a1a9b9aedf80723888b00faa8493d50dd0f13fa24832dbb4"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1268,
+  "file_size": 176220,
+  "stored_at": "2026-01-13T14:36:42.842159"
+}

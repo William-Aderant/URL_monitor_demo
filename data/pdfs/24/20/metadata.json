@@ -1,0 +1,22 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-481.pdf",
+  "version_number": 1,
+  "pdf_hash": "792e2ba4ee468bd411d787420622ab9f918180a28c86f7fe1acaa2c215ca2524",
+  "text_hash": "d5526b517949ad6743da1be2ae6793b8a9c5ce5f4bf44c94f5259ecab4d19714",
+  "page_hashes": [
+    "41858148d966276b61d4150a636e6498ea40bea1878a5536781bd7df9777c992",
+    "fd4b3860eb4da4bc395c8a80e20a761c9a1dc696fd04c01f488066c1a9dd1aab",
+    "9a72952fc7aeeba6a8346ee7ef00b2a03d72b460cbb271a60112bdb547d884be",
+    "1a4bf372cf647617e2de4bec67e625ff2d576b229256e62206dface281588fa4",
+    "e3f24946a0da827b5bce6c871f92ee64242c1773829c636a7449ec381c110061",
+    "35fb56a046c6ee06eb5812092311b4e735ce941d9040a1d800f3a98f705b3905",
+    "9e6431b30ef9fd22bf500618658d74f62c926197dc4268ea782368d4697e3541",
+    "ffa1265ee94a5bf92f3efee5ebf99aea7d99d3abd3209b666560c25866ac91ff"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 8,
+  "text_length": 16127,
+  "file_size": 299046,
+  "stored_at": "2026-01-13T14:32:24.874134"
+}

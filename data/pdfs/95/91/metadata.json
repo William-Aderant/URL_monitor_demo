@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-733.pdf",
+  "version_number": 1,
+  "pdf_hash": "ac20e7705683f069a42ca6c1fafd4191eda711367f14f64235b7ac38bf29077d",
+  "text_hash": "ba25640124277500dab7709c14f8f2b9145a317fb55092540988e8c9f1ec3d1b",
+  "page_hashes": [
+    "ba25640124277500dab7709c14f8f2b9145a317fb55092540988e8c9f1ec3d1b"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1199,
+  "file_size": 282855,
+  "stored_at": "2026-01-13T14:37:21.654545"
+}

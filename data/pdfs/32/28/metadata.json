@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-125s.pdf",
+  "version_number": 1,
+  "pdf_hash": "de181c4acbde7e4c73df46568181ec2d61996d0b9ec982abdd19c37da730107f",
+  "text_hash": "bcb8329b5ed87c356ffbc0143943fb6688f696c5cf7fc02a02cfc5a92eba46bf",
+  "page_hashes": [
+    "a2fa93068dc0bf2a87da99828c2fbc02fcd1b5ab2fff39740601a287f91610dc",
+    "ee72422bd645bd8397032ba8c58e5a2a74029a32fcab06e145cf373516b0fb13",
+    "aefcc0e5439883baff1d83012f984d5d271e39d2a51345b7c2b74599e8623f2c"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 8574,
+  "file_size": 210015,
+  "stored_at": "2026-01-13T14:32:59.413469"
+}

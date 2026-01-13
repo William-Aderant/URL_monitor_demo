@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-840.pdf",
+  "version_number": 1,
+  "pdf_hash": "438f8542afc2f80473f0479cafc50d04d88ac22ba5ed23fc7f5c3abbf77b7736",
+  "text_hash": "00bee8dfc0451351d1b7a6ef81f030118cf2be08e0fc4332653289b843e926e1",
+  "page_hashes": [
+    "f8fc0698e795c8ec3a2e2138fa62d6adc12f1233bcb1f412acb3408b9f3ec8c4",
+    "49046431293a10eb69efdbe184817e7086272c539aa334b3cbc18d475b46820d"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2418,
+  "file_size": 142793,
+  "stored_at": "2026-01-13T14:35:13.065887"
+}

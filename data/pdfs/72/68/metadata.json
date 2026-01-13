@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-680.pdf",
+  "version_number": 1,
+  "pdf_hash": "4cc99c43200fce7b8b0484e830bd85c9413b641f1eb006a8fdf3eecf8c7287f1",
+  "text_hash": "74e122ecbf73e589f3c0e17c9f0a8d7b8640740be73cd66e90308f1fa9c5640c",
+  "page_hashes": [
+    "74e122ecbf73e589f3c0e17c9f0a8d7b8640740be73cd66e90308f1fa9c5640c"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 481,
+  "file_size": 478088,
+  "stored_at": "2026-01-13T14:35:47.820785"
+}

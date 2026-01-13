@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/vs-405.pdf",
+  "version_number": 1,
+  "pdf_hash": "11e0edc2e353afee5a2c64f3b396d901cb8d91acdb59bcec59dda82d178a9e03",
+  "text_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "page_hashes": [
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "extraction_method": "pdfminer",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1,
+  "file_size": 51172,
+  "stored_at": "2026-01-13T14:32:20.342491"
+}

@@ -619,3 +619,10 @@ async def get_status(db: Session = Depends(get_db)):
         storage_size_bytes=storage_size
     )
 
+
+@router.get("/api/aws-calls")
+async def get_aws_calls():
+    """Get AWS API call counts."""
+    from services.api_counter import api_counter
+    return api_counter.get_stats()
+

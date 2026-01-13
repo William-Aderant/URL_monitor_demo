@@ -1,0 +1,20 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-109.pdf",
+  "version_number": 1,
+  "pdf_hash": "16dbbc151d79512487b3770f431738ae3b0b02f14851ac716fafc6fb16bc0a5f",
+  "text_hash": "52b33201297982322e94bc623311330cea64b8e2732ad98725bad8d041e5cbec",
+  "page_hashes": [
+    "5124227dd24a60b2510d5e9cf5acae455d45b6345720743170dc85e1ba468882",
+    "596352ce00bd896ce7399edd0fd882e93dbd826d168312acc1d3011dfd2b13a0",
+    "17f4ce73559e6613aaf41bd552fe8673cec0784d7df042f2876f9f727c7914a5",
+    "e654b7e1b6869f95b45d591b4e476e725535b9e5ccccbf02474b8c28d08a2527",
+    "f299994bb1825d7fda744b60dd08eb4297ef7b21970a98344d1479a08fddb9bd",
+    "a2708b1c254410a530926fb94c3dc31a3be361b8536973531e5476099a54b297"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 6,
+  "text_length": 12129,
+  "file_size": 153134,
+  "stored_at": "2026-01-13T14:37:30.039191"
+}

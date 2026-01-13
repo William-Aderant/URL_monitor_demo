@@ -1,0 +1,18 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-145.pdf",
+  "version_number": 1,
+  "pdf_hash": "e5f7d0564610938cf81c64f6827224f78db00443ef50bc1597537b0f7987dfac",
+  "text_hash": "5629f262f47ff157806773d8589959948fb78237a6ff8e13b5e26c552505d9ce",
+  "page_hashes": [
+    "ecd730324dfa45bddbf6ed5e6cb748bdb7ef6c729a459a4cca7fdf646159751f",
+    "41bcabb30b2b1eee7439393dae940ccc684ac4e4cf2fd55380a302c7f03b21a2",
+    "398ade7044413a580f8f99a31a0249be228febb5536306e25c71a7c25a5da7ea",
+    "13a4dc2b0596a557590fc88fd5908cb927e0f52ec0d5fda00905ef990cae83ac"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 4,
+  "text_length": 4960,
+  "file_size": 164919,
+  "stored_at": "2026-01-13T14:33:08.581969"
+}

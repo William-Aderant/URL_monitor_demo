@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-410.pdf",
+  "version_number": 1,
+  "pdf_hash": "7361302cea9cd71f7aec082d8c94704b1fda65542a7dcbb679db3874d8dd5871",
+  "text_hash": "c084cd3b486c18b70048fe8b6d192f794ff05a4edd64c2aea8dcb3f37494f931",
+  "page_hashes": [
+    "bf9988cda2650f188bafa44087f0c3dcd6f5425a099d7535df12f8ea43ae1d2c",
+    "2da8b679291e02cdf906ea303ff153ae2ed59f219f68f6e0717d27f89994270b",
+    "0d636873c20b45eb09a865fe4871a83b8c2208bde3f890a5ca06f0918cd06a66"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 2391,
+  "file_size": 945667,
+  "stored_at": "2026-01-13T14:31:44.228735"
+}

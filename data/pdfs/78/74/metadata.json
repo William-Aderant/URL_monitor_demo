@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-841.pdf",
+  "version_number": 1,
+  "pdf_hash": "7930642397d7ab6e5ddbca1f0ec5fdbb8a7ba8ea954edead7f5d90de35b75cc7",
+  "text_hash": "b4ed7ecfc61cc3b3d2fdf3f59b33a4a2d81853e1fb31a002d0866a6b6e192521",
+  "page_hashes": [
+    "174cb3b7ab9bb9c9d69ca04794623c74fbce6493b0d786af248d781f9c7e08bc",
+    "2629c29d64910393709d6ea6d50e833733290f49ae4510a50663617966c529fa"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2336,
+  "file_size": 144356,
+  "stored_at": "2026-01-13T14:36:11.235364"
+}

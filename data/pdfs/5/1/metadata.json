@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-775.pdf",
+  "version_number": 1,
+  "pdf_hash": "ae68ac3c49409c908b3d6fdfae9cead0bace7c7cf960ccfb36ff7bfe5af3b064",
+  "text_hash": "9c27728d1f89082d86b1b77db071c2169e67939e26885bff03c7154475ae99a5",
+  "page_hashes": [
+    "9c27728d1f89082d86b1b77db071c2169e67939e26885bff03c7154475ae99a5"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 930,
+  "file_size": 45886,
+  "stored_at": "2026-01-13T14:30:57.144505"
+}

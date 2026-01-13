@@ -1,0 +1,24 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-503.pdf",
+  "version_number": 1,
+  "pdf_hash": "5a6bb62cbdc684a5533c1335260abddadf065b5f504b4bb8fcceb4e0f5cbeb53",
+  "text_hash": "34f02c30f8f52e40f3394876e3eac06dad87a5746804104d7c1ef1510b0e3e50",
+  "page_hashes": [
+    "e19ce07ae6f0e3c3f0ffb25c290ad5a335ed68f6e13246a9a1a0753e06501508",
+    "2a8c85559ebcede33a537fed93b1c3360be87ba60048b06259da73800121e4d1",
+    "37b4d60174a70581ed7891cac307962a2d15365f551bc55ca6f9f5d1eb2c9f1a",
+    "94e769f57dd894368a5556a8b58e29df41e59461ee32813e06c784c5af8ee431",
+    "0400047e69d608b84a1ad7bfc9157529489876cbe07fa7de6ed720d2c83c24b2",
+    "e744041527a4686770cf192df114e7adb50ace75a16c7d1d9039a3827762db83",
+    "d454df21535c4b2128b4c6bf486df556f7bff1ba9108724d180f5eda5a924a36",
+    "520bca830ff0877c1dd1916289ea3113918703c4631a82db6b39f69c43af19be",
+    "25ebb442e766b0ce657be6ea0dbed2895dcff29c89636659387814ed4501bff2",
+    "a2a786fa00141c287ab5aa72331dd370176991a4f5dc115d2e3de9f2b9066d83"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 10,
+  "text_length": 13381,
+  "file_size": 394405,
+  "stored_at": "2026-01-13T14:37:08.657475"
+}

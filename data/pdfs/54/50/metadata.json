@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-842.pdf",
+  "version_number": 1,
+  "pdf_hash": "b02c6479f09dd88f087d5b25c368058632579485434baf1e37e8e68ceb12d9ce",
+  "text_hash": "a3348567086491dd9b38eaac8a6505de8f757f54371d3fa140d69a288d7d028b",
+  "page_hashes": [
+    "a3348567086491dd9b38eaac8a6505de8f757f54371d3fa140d69a288d7d028b"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 856,
+  "file_size": 131161,
+  "stored_at": "2026-01-13T14:34:33.446010"
+}

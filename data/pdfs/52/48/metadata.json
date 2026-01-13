@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-843.pdf",
+  "version_number": 1,
+  "pdf_hash": "17071714fe1e18afcbfa702d043682f8d51f21e14a52b86781351397c5dd1848",
+  "text_hash": "353b5557dc85afccfc5fa971a6962ede22d3f2df1d847569e330103c1be2c54d",
+  "page_hashes": [
+    "353b5557dc85afccfc5fa971a6962ede22d3f2df1d847569e330103c1be2c54d"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 908,
+  "file_size": 129558,
+  "stored_at": "2026-01-13T14:34:24.718745"
+}

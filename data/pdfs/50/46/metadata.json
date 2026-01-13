@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-567.pdf",
+  "version_number": 1,
+  "pdf_hash": "336bc20eae75810d48141b2ab2db41393d563cbf9f8ec24796b4c91d3bf21416",
+  "text_hash": "a94a736b213ba6d5b4de1037b3ed42f1e0da98d63c0e7f434d2c43c9e1641918",
+  "page_hashes": [
+    "a94a736b213ba6d5b4de1037b3ed42f1e0da98d63c0e7f434d2c43c9e1641918"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1533,
+  "file_size": 298382,
+  "stored_at": "2026-01-13T14:34:16.744941"
+}

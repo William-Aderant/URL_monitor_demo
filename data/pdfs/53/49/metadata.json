@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-852.pdf",
+  "version_number": 1,
+  "pdf_hash": "e3da4f6f5b6e1fafa6888037bf78139abf6c6cd1e6f4aa9d860a52c82964535b",
+  "text_hash": "7676ff5b877aab1f4c57b5a157a96309669ce823736917271d6114c0be0333da",
+  "page_hashes": [
+    "7676ff5b877aab1f4c57b5a157a96309669ce823736917271d6114c0be0333da"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 869,
+  "file_size": 130668,
+  "stored_at": "2026-01-13T14:34:28.780989"
+}

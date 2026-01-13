@@ -1,0 +1,140 @@
+CASE DESCRIPTION FORM – SUPERIOR COURT Case Number:
+This form is not required for cases filed electronically through the court’s TrueFiling program. For District
+Court cases, use form CIV-125D. For more information on whether to file in Superior Court or District
+Court, see form CIV-126, Information Sheet - Superior vs. District Court.
+Type of Action For Court Use Only
+Action
+Check the box that best describes the case. Mark ONE box only. Case Type
+Code
+Domestic Relations (family law – divorce, legal separation,
+court-ordered parenting plans, paternity, etc.)
+Spouses with Minor Children (or pregnant) Agree on All Issues to End Div or Cust w/Children CISUDVC
+Marriage
+Spouses with Minor Children (or pregnant) do not Agree (or are Div or Cust w/Children CISDVC
+unsure) on All Issues to End Marriage
+Spouses without Minor Children (and not pregnant) Agree on All Divorce without Children CISUDIV
+Issues to End Marriage
+Spouses without Minor Children (and not pregnant) do not Agree (or Divorce without Children CISDIV
+are unsure) on All Issues to End Marriage
+Unmarried Parents Agree on Parenting Plan Div or Cust w/Children CISUCUS
+Unmarried Parents do not Agree (or are unsure) on Parenting Plan Div or Cust w/Children CISCUS
+Child Custody or Visitation by Person Other than Parent Domestic Relations Other CIVIS
+Property Division – Unmarried Partners Domestic Relations Other CISPROP
+Stay Legally Married (have minor children or pregnant) - Agree on Legal Separation CIUCLS
+Property/Debt Division and Parenting Plan
+Stay Legally Married (have minor children or pregnant) - do not Agree Legal Separation CICLS
+(or are unsure) on Property/Debt Division or Parenting Plan
+Stay Legally Married (no minor children and not pregnant) - Agree on Legal Separation CIUSLS
+Property/Debt Division
+Stay Legally Married (no minor children and not pregnant) – do not Legal Separation CISLS
+Agree (or are unsure) on Property/Debt Division
+Annul (void) a Marriage Domestic Relations Other CIANNUL
+Paternity – Determine Person is Biological Father Domestic Relations Other CISPAT
+Paternity – Determine Person is not Biological Father Domestic Relations Other CIDPAT
+Paternity – Determine Both Biological and Non-Biological Father Domestic Relations Other CIDEPAT
+Genetic Testing - Failure to Comply with Order for Testing Domestic Relations Other CIOSCP
+Administrative Child Support Order – Modify or Enforce Domestic Relations Other CIPCS
+Alaska PFD or Native Dividend – Request Order Domestic Relations Other CIPND
+Foreign Orders (may include orders from tribal courts,
+other U.S. state or federal courts, and other countries)
+Register Support Order (may include motion to modify support) Domestic Relations Other CIUIFSA
+Register Custody Order (may include agreement to modify custody) Domestic Relations Other DR483REG
+Register Custody Order with Motion to Modify Custody Domestic Relations Other DR483
+Register Tribal Court Custody Order Domestic Relations Other DR483REGT
+Register Custody & Support Order (may include agreement to Domestic Relations Other CIFCSREG
+modify custody and/or support)
+Register Custody & Support Order with Motion to Modify Support Domestic Relations Other CIFCSMS
+Only [If modifying custody, use next option.]
+Register Custody & Support Order with Motion to Modify Custody Domestic Relations Other CIFCSMC
+(may also ask to modify support)
+Register Domestic Relations Order (not custody or support) Domestic Relations Other CIDRFJ
+Register Tribal Court Domestic Relations Order (not custody or Domestic Relations Other CIDRFJT
+support)
+Petition for Expedited Enforcement of Non-Registered Custody Order Domestic Relations Other DR488
+Register Money Judgment from another State or Country Foreign Judgment Sup Court CISFOJ
+Register Non-Money Judgment from another U.S. Court Superior Court Misc Petition CISFNMJ
+Register Tribal Court Change of Name Order - Adult One Party Misc Civil CICONT
+Register Tribal Court Change of Name Order - Minor One Party Misc Civil CICONMT
+CIV-125S (6/24) CASE DESCRIPTION FORM – SUPERIOR COURT Page 1 of 3
+
+Type of Action For Court Use Only
+Action
+Check the box that best describes the case. Mark ONE box only. Case Type
+Code
+Debt/Contract
+Debt Collection Civil Superior Court CISDEB
+Claim by Buyer against Seller of Goods/Services Civil Superior Court CISCLAIM
+Employment – Discrimination Civil Superior Court CISEMPD
+Employment – Other than Discrimination Civil Superior Court CISEMP
+Other Contract Civil Superior Court CISOCT
+Real Property (land or buildings)
+Condemnation Civil Superior Court CISCNDM
+Foreclosure Civil Superior Court CISFOR
+Quiet Title (establish ownership) Civil Superior Court CISQIT
+Real Property Tax Foreclosure Superior Court Misc Petition CISTAX
+Other Real Estate Matter Civil Superior Court CISREM
+Landlord/Tenant
+Eviction (may include rent and damages) Eviction-Superior Court CISFED
+Other Landlord/Tenant (no eviction) Civil Superior Court CISLT
+Malpractice (misconduct while engaged in professional services)
+Legal Malpractice Civil Superior Court CISLMP
+Medical Malpractice Civil Superior Court CISMMP
+Other Malpractice Civil Superior Court CISOMP
+Tort (unlawful act that causes harm, other than breach of contract)
+Wrongful Death Civil Superior Court CISPID
+Automobile Tort (but not wrongful death) Civil Superior Court CISIDA
+Claim against Owner of Real Property for Personal Injury Civil Superior Court CISPIO
+Product Liability (defective item from manufacturer or seller) Civil Superior Court CISPL
+Intentional Tort (for example: assault, battery, vandalism) Civil Superior Court CISIT
+Slander/Libel/Defamation Civil Superior Court CISSLD
+Other Tort Civil Superior Court CISIDO
+Approval of Minor Settlement – Civil Petition [May also file in probate.] Superior Court Misc Petition CISPET
+Other Civil
+Election Contest or Recount Appeal Civil Superior Court CISELE
+Change of Name - Adult Change of Name CICON
+Change of Name - Minor Change of Name CICONM
+Confession of Judgment (all sides agree to entry of court order - not
+Civil Superior Court CISCCONF
+domestic relations)
+Structured Settlement – AS 09.60.200 Superior Court Misc Petition CISSS
+Administrative Agency Proceeding – Request for Court Assistance Superior Court Misc Petition CISWRNT
+Arbitration - Action under Uniform Arbitration Act Civil Superior Court CISAP
+Fraud Civil Superior Court CISFRAUD
+Civil Superior Court
+Unfair Trade Practice and Consumer Protection CISUTP
+Clerk: Issue form CIV-128
+Writ of Habeas Corpus (request for review of legality of detention) Civil Superior Court CIWHC
+Fish & Game - Abatement & Forfeiture of Equipment Superior Court Misc Petition CISAF
+Appointment of Trustee Counsel Superior Court Misc Petition CISTC
+Action under Alaska Securities Act Civil Superior Court CISASA
+Quarantine and Isolation Superior Court Misc Petition CISQI
+Other Superior Court Complaint Civil Superior Court CISOCI
+Other Superior Court Petition – More than One Party Superior Court Misc Petition CISPET
+Other Superior Court Petition – One Party One Party Misc Civil CISOPMC
+CIV-125S (6/24) CASE DESCRIPTION FORM – SUPERIOR COURT Page 2 of 3
+
+Type of Action For Court Use Only
+Action
+Check the box that best describes the case. Mark ONE box only. Case Type
+Code
+Post-Conviction Relief to Superior Court
+Post-Conviction Relief (after felony or misdemeanor conviction and Post-Conviction Relief-Sup Ct CISPCR
+sentencing in superior court)
+Appeal to Superior Court - From Administrative Agency
+Election Contest or Recount Appeal [See Other Civil category.]
+Department of Motor Vehicles (DMV) Appeal Appeal from Admin Agency CIADDMV
+Employment Security and Unemployment Benefits Appeal Appeal from Admin Agency CIADRESA
+Administrative Agency Appeal - Other Appeal from Admin Agency CIADR
+Request for Relief from Child Support Enforcement Division (CSED)
+Petition for Review or Relief CICSED
+License Action
+Request for Review of Non-Final Administrative Agency Decision Petition for Review or Relief CIPRA
+Request for Relief from Administrative Agency Delay - AS 44.62.305 Petition for Review or Relief CIPRLF
+Appeal to Superior Court - From District Court
+Civil Appeal Appeal from District Court CIACI2
+Criminal Appeal Appeal from District Court CIACRM
+Minor Offense Appeal Appeal from District Court CIAMO
+Small Claims Appeal Appeal from District Court CIASC
+Request for Review of Civil, Criminal, or Minor Offense Case Decision Petition for Review or Relief CIPRD2
+Petition for Review of a Small Claims Decision Petition for Review or Relief CIPRSC
+CIV-125S (6/24) CASE DESCRIPTION FORM – SUPERIOR COURT Page 3 of 3

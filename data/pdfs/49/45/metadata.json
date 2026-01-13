@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-536.pdf",
+  "version_number": 1,
+  "pdf_hash": "fd57412c808ad770b559d2be98f059585952eb7d198f3f1f273dc7b7db2f2a41",
+  "text_hash": "2fa108622da4e20382eb25f12ba651dc2bef92f5a83f3157a65481786ca51b07",
+  "page_hashes": [
+    "b0575158e06da938bf3b00a0f53edf94041fcc5a78c419e9ebb7aea608f9bd5b",
+    "8717212aa49fba2b5b479c40ceb355dd4908e4e792d738864d6a98ade6135536",
+    "88f510d5a3db2010072934088a21501224ab902f189c2626b5ad08bb4d1d6fa4"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 6526,
+  "file_size": 122026,
+  "stored_at": "2026-01-13T14:34:12.010708"
+}

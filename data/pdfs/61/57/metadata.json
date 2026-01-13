@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-540.pdf",
+  "version_number": 1,
+  "pdf_hash": "85f5234b39b985fe97939e9e5699845cff46d51fe0370483c4fa465067b5d745",
+  "text_hash": "a97a91812cd62500eb019e12232a13b4c1afe76ddc54136cd41b447b8d4468c7",
+  "page_hashes": [
+    "a97a91812cd62500eb019e12232a13b4c1afe76ddc54136cd41b447b8d4468c7"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1710,
+  "file_size": 122715,
+  "stored_at": "2026-01-13T14:35:01.259965"
+}

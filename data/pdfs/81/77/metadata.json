@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-820.pdf",
+  "version_number": 1,
+  "pdf_hash": "5372642f8d7dbaf87587782ac72a179beab8398874885f6aa5dd484df5e4b3db",
+  "text_hash": "e14ca32b4cced370ac94df9887ca175b693f819e573b53f4c5f16ba6b2abfa16",
+  "page_hashes": [
+    "e14ca32b4cced370ac94df9887ca175b693f819e573b53f4c5f16ba6b2abfa16"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 547,
+  "file_size": 243956,
+  "stored_at": "2026-01-13T14:36:22.582269"
+}

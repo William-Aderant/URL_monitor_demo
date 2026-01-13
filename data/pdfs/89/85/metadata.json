@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-706.pdf",
+  "version_number": 1,
+  "pdf_hash": "2ef554255d1bd427772696fe15b0a1fd8d3ad4119e50ef0f4e2636792387da24",
+  "text_hash": "a8ccac5691b74503edba0054dd300fb930c69bd5247fa84f330d7ef2e2edd319",
+  "page_hashes": [
+    "a8ccac5691b74503edba0054dd300fb930c69bd5247fa84f330d7ef2e2edd319"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1438,
+  "file_size": 118917,
+  "stored_at": "2026-01-13T14:36:55.673861"
+}

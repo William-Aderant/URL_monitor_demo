@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-140.pdf",
+  "version_number": 1,
+  "pdf_hash": "70a70dd250caf1ea7d530d4315116d852daf6bc22048457f9289d3ff68d79bcd",
+  "text_hash": "e2a401a84cecce0251513b39b8473975a80fd397f519039c86fa7d8dca7999fc",
+  "page_hashes": [
+    "e2a401a84cecce0251513b39b8473975a80fd397f519039c86fa7d8dca7999fc"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 973,
+  "file_size": 118935,
+  "stored_at": "2026-01-13T14:32:46.759311"
+}

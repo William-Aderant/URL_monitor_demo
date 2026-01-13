@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-825.pdf",
+  "version_number": 1,
+  "pdf_hash": "379d93baef9e0c47203f401c69e95dd455bad6de6671c240f3090fbdbd77a733",
+  "text_hash": "75f3c25aabbf6f0e1874dd34b1c3c096c29e0cff6d0f8d9f73c8bbf8a9fa6b40",
+  "page_hashes": [
+    "75f3c25aabbf6f0e1874dd34b1c3c096c29e0cff6d0f8d9f73c8bbf8a9fa6b40"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 599,
+  "file_size": 275813,
+  "stored_at": "2026-01-13T14:32:51.562736"
+}

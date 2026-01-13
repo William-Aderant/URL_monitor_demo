@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-640.pdf",
+  "version_number": 1,
+  "pdf_hash": "47dab9eeace3405cb496ef29b6866f08d390ad37494017f977f092fc16f63b0f",
+  "text_hash": "662fc124d7481a513310a44d852134d9af61b58110e7a16d2651dd413ecebaad",
+  "page_hashes": [
+    "662fc124d7481a513310a44d852134d9af61b58110e7a16d2651dd413ecebaad"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1031,
+  "file_size": 301386,
+  "stored_at": "2026-01-13T14:35:30.870554"
+}

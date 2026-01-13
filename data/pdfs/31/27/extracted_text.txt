@@ -1,0 +1,55 @@
+CASE DESCRIPTION – DISTRICT COURT Case Number:
+This form is not required for cases filed electronically through TrueFiling.
+For Superior Court cases, use form CIV-125S.
+Type of Action For Court Use Only
+Check the box that best describes the case. Mark one box only. Case Type Description Action Code
+Landlord/Tenant
+Eviction (may include rent and damages) Eviction District Court CIDFED
+Other Landlord/Tenant (no eviction) Civil District Court CIDLT
+Debt/Contract
+Debt Collection Civil District Court CIDDEB
+Claim by Buyer against Seller of Goods/Services Civil District Court CIDCLAIM
+Employment - Other than Discrimination Civil District Court CIDEMP
+Enforce AK ODR Agreement Civil District Court CIDODREN
+Other Contract Civil District Court CIDOCT
+Real Property (land or buildings)
+Foreclosure Civil District Court CIDFOR
+Tort (unlawful act that causes harm, other than breach of contract)
+Automobile Tort (but not wrongful death) Civil District Court CIDIDA
+Claim against Owner of Real Property for Personal Injury Civil District Court CIDPIO
+Product Liability (defective item from manufacturer or seller) Civil District Court CIDPL
+Intentional Tort (for example: assault, battery, vandalism) Civil District Court CIDIT
+Slander/Libel/Defamation Civil District Court CIDSLD
+Other Tort Civil District Court CIDIDO
+Malpractice (misconduct while engaged in professional services)
+Legal Malpractice Civil District Court CIDLMP
+Medical Malpractice Civil District Court CIDMMP
+Other Malpractice Civil District Court CIDOMP
+Out-of-State Judgment [For Domestic Relations judgments, use CIV-125S]
+Register Money Judgment from another State or Country Foreign Judgment Dist Court CIDFOJ
+Register Non-Money Judgment from another U.S. Court Civil District Court CIDOCI
+Other Civil
+Confession of Judgment (all sides agree to entry of court order -
+Civil District Court CIDCCONF
+not domestic relations or real estate)
+Arbitration - Action under Uniform Arbitration Act Civil District Court CIDAP
+Fraud Civil District Court CIDFRAUD
+Civil District Court
+Unfair Trade Practice and Consumer Protection CIDUTP
+Clerk: Issue form CIV-128
+Vehicle Impoundment/Forfeiture Civil District Court CIDCVI
+Other District Court Complaint Civil District Court CIDOCI
+Post-Conviction Relief to District Court
+Post-Conviction Relief (after misdemeanor conviction and Post-Conviction Relief District
+CIDPCR
+sentencing in district court) Court
+Coroner
+Unclaimed Body Coroner CICOUB
+Presumptive Death (when there is no body, a legal declaration
+Coroner CICOPD
+that a person has died)
+Inquest (hearing to determine circumstances of death) Coroner CICOINQ
+For more information on how to determine whether to file in Superior Court or District Court,
+see form CIV-126, Information Sheet - Superior vs. District Court
+CIV-125D (11/23)
+CASE DESCRIPTION FORM – DISTRICT COURT

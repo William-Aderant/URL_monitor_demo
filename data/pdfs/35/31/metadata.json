@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-708.pdf",
+  "version_number": 1,
+  "pdf_hash": "83a50c498e58d4e718b8002d34f1cdf26861308c5aadce29682da764bebcbc9e",
+  "text_hash": "e763c3aea303569c73a688f580d3e276754c388e2b5f77641f92e250f53ebeec",
+  "page_hashes": [
+    "d0cc5f73fe7a6d1d31bc1cc205173263bae45c4ab2dac31ccb98ccd9c2de0465",
+    "0bb51edf6252b04942bba4b2307ce95e616e42c43e5f3eb4c6839f0c78a18515"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 5553,
+  "file_size": 84639,
+  "stored_at": "2026-01-13T14:33:12.619783"
+}

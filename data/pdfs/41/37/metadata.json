@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-561.pdf",
+  "version_number": 1,
+  "pdf_hash": "d960cde2989e3928c88f4ec6488e6d42b04fe7aed279bf600b752e3f414cd331",
+  "text_hash": "18196c8335ad32a14c8729108a965c2661f515449011dff3ffa031204c2ed3a7",
+  "page_hashes": [
+    "18196c8335ad32a14c8729108a965c2661f515449011dff3ffa031204c2ed3a7"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1417,
+  "file_size": 541374,
+  "stored_at": "2026-01-13T14:33:37.276446"
+}

@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-716.pdf",
+  "version_number": 1,
+  "pdf_hash": "c5dfe1b374f05fa0274bf444428b8f270248dee1f7733a0144dad37cfe97a97b",
+  "text_hash": "2eb470a3711b5e8756ae227a8e23595d23f702bbc0b77fcf7fb9fec97fd00483",
+  "page_hashes": [
+    "2eb470a3711b5e8756ae227a8e23595d23f702bbc0b77fcf7fb9fec97fd00483"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1566,
+  "file_size": 52913,
+  "stored_at": "2026-01-13T14:35:21.861793"
+}

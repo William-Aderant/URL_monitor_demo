@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-696.pdf",
+  "version_number": 1,
+  "pdf_hash": "cd183b2385228a88de6ad2bc7b5198fc5a834a2388f0814e4dc145d175ec963b",
+  "text_hash": "0655bf633ed5dd21885bc2d0ef4ebdd0c94b287ccc79e977f535a69b09a0df5f",
+  "page_hashes": [
+    "0655bf633ed5dd21885bc2d0ef4ebdd0c94b287ccc79e977f535a69b09a0df5f"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1242,
+  "file_size": 64953,
+  "stored_at": "2026-01-13T14:36:19.297729"
+}

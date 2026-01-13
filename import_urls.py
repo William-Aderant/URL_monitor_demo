@@ -26,14 +26,56 @@ from db.migrations import run_migrations
 from db.models import MonitoredURL
 
 
+def get_forms_index_url(url: str) -> str:
+    """
+    Get the main forms index page for a court forms URL.
+    
+    For Alaska Court System, this returns the base forms page:
+    https://public.courts.alaska.gov/web/forms/
+    
+    This enables the enhanced crawler to traverse all form sections
+    to find relocated forms.
+    """
+    from urllib.parse import urlparse
+    import re
+    
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    
+    # Alaska Court System pattern
+    # https://public.courts.alaska.gov/web/forms/docs/civ-775.pdf
+    # -> https://public.courts.alaska.gov/web/forms/
+    if 'courts.alaska.gov' in parsed.netloc:
+        match = re.search(r'(/web/forms/)', path, re.IGNORECASE)
+        if match:
+            return f"{parsed.scheme}://{parsed.netloc}{match.group(1)}"
+    
+    # Generic pattern: look for /forms/ in the path
+    match = re.search(r'(/[^/]*forms[^/]*/)', path, re.IGNORECASE)
+    if match:
+        return f"{parsed.scheme}://{parsed.netloc}{match.group(1)}"
+    
+    # Fallback: use immediate parent directory
+    path_parts = parsed.path.split('/')
+    if len(path_parts) > 1:
+        parent_path = '/'.join(path_parts[:-1]) + '/'
+        return f"{parsed.scheme}://{parsed.netloc}{parent_path}"
+    
+    return None
+
+
 def import_urls_from_file(filepath: str, db_session) -> int:
     """Import URLs from a text file (one URL per line)."""
+    from urllib.parse import urlparse
+    
     path = Path(filepath)
     if not path.exists():
         logger.error("File not found", filepath=filepath)
         return 0
     
     added = 0
+    updated = 0
+    
     with open(path) as f:
         for line in f:
             url = line.strip()
@@ -43,20 +85,36 @@ def import_urls_from_file(filepath: str, db_session) -> int:
             # Generate name from URL
             name = url.split('/')[-1].replace('.pdf', '').upper()
             
+            # Get the forms index page URL for recursive crawling
+            # This is the key for finding relocated forms - the crawler
+            # will start here and traverse all sections to find the form
+            parent_page_url = get_forms_index_url(url)
+            
             existing = db_session.query(MonitoredURL).filter_by(url=url).first()
             if not existing:
                 monitored_url = MonitoredURL(
                     name=f"Alaska {name}",
                     url=url,
-                    description=f"Alaska Court Form {name}"
+                    description=f"Alaska Court Form {name}",
+                    parent_page_url=parent_page_url
                 )
                 db_session.add(monitored_url)
                 added += 1
-                logger.info("Added URL", name=f"Alaska {name}")
+                logger.info("Added URL", name=f"Alaska {name}", parent_page_url=parent_page_url)
             else:
-                logger.info("URL already exists", name=existing.name)
+                # Update parent_page_url to the forms index page
+                if existing.parent_page_url != parent_page_url:
+                    existing.parent_page_url = parent_page_url
+                    updated += 1
+                    logger.info("Updated parent_page_url", name=existing.name, parent_page_url=parent_page_url)
+                else:
+                    logger.info("URL already exists", name=existing.name)
     
     db_session.commit()
+    
+    if updated > 0:
+        logger.info(f"Updated {updated} existing URLs with new parent_page_url")
+    
     return added
 
 

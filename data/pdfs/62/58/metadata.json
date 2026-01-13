@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-850.pdf",
+  "version_number": 1,
+  "pdf_hash": "4bdd7bf56bf2a52eba92fe77974d8a03c5e6159e83453c38dab7ad5b8004bf33",
+  "text_hash": "e5ade5bd61c21c044d004ee8a02014f789f15c538bfb29a1826280d05d7fb012",
+  "page_hashes": [
+    "181a34f7ae897ccc1dbbe522c0fa90cfe3bd28ab166d00eb27364bf958474b38",
+    "bbdae44bb4aa6af677950c24703737e5f08fd0dbb01c04c250300cc97391be23"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1708,
+  "file_size": 139652,
+  "stored_at": "2026-01-13T14:35:06.055098"
+}

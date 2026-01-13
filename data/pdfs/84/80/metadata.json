@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-620.pdf",
+  "version_number": 1,
+  "pdf_hash": "3e8a2f4a27739ee00f127f2ae48f2d4caf4de534da7bcb4ec2fd757dab971b5f",
+  "text_hash": "29cff90ca007b9deb1d7196a924c1aa9c7829aa3ab7cd6cf4f386bb47d928677",
+  "page_hashes": [
+    "29cff90ca007b9deb1d7196a924c1aa9c7829aa3ab7cd6cf4f386bb47d928677"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 927,
+  "file_size": 245681,
+  "stored_at": "2026-01-13T14:36:34.197550"
+}

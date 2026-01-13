@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-135.pdf",
+  "version_number": 1,
+  "pdf_hash": "ebcc0a74a35a41b597c730ff769dceca2af727e88a148a0b4bc68404d46c9813",
+  "text_hash": "efe0fadb2b7b052e9df0e33278e64449b81b16fdad0844252d3697bf28bcd853",
+  "page_hashes": [
+    "efe0fadb2b7b052e9df0e33278e64449b81b16fdad0844252d3697bf28bcd853"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 922,
+  "file_size": 126263,
+  "stored_at": "2026-01-13T14:32:29.977701"
+}

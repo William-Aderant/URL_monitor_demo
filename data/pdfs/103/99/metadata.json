@@ -1,0 +1,17 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-740.pdf",
+  "version_number": 1,
+  "pdf_hash": "d2454a78f71bbbc9de2e0e394dc5780f3277b72ebd4dda9feca594fbe9557fe5",
+  "text_hash": "31e39463ae18198497a9b03f7e169d30762e696b3b97e5a2adf8cfdbc3d81dac",
+  "page_hashes": [
+    "7ebac229d1d299810521c9774fe77c261ea7be38d2536c51936091fb5532940f",
+    "b79a5249d529dc49eddff89edb3756cd63dc181f487349b1cd5c1af18a4945b7",
+    "a8d5d70482503d1097cc746447680a308905703497ca60ee56fba571f8cef0ec"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 3,
+  "text_length": 5004,
+  "file_size": 1615508,
+  "stored_at": "2026-01-13T14:37:55.936735"
+}

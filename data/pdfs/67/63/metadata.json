@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-805.pdf",
+  "version_number": 1,
+  "pdf_hash": "ddfc15d318ba81fd0eefe3d3894417302f2e3342dcb4df597875caa2cf55b5f6",
+  "text_hash": "ef5c5295e9325d410203fe1c47725511e5fb0835ca3c77dfc10d8ec42c7b729a",
+  "page_hashes": [
+    "1f005443aa6d3927121a1f8bce56272d2832d2cf2d1e6cf97f763aa96cee2516",
+    "1a5de7011e09800b996da0883cc4e0a512a47deed2b18d8684fc865d742de59e"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1688,
+  "file_size": 48691,
+  "stored_at": "2026-01-13T14:35:25.999030"
+}

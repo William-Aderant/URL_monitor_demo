@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-709.pdf",
+  "version_number": 1,
+  "pdf_hash": "f42fe9c33ac47f252df6fcd86dea5000a41023d31e35add8b912417ed101d318",
+  "text_hash": "08d342a62fba289eebd0b60f1981d85867ad08df2a3fea533d3d7082ad69f831",
+  "page_hashes": [
+    "0c6b9e850dad0a044a997623025d99586331bce88d10c4015f133fc9f1a68d6f",
+    "8334452dd2f0605455223d5e79fd5b7e579ea1ed7b52fc161fb90aa62771932f"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 5682,
+  "file_size": 89104,
+  "stored_at": "2026-01-13T14:33:45.612548"
+}

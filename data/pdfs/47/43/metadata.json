@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-714.pdf",
+  "version_number": 1,
+  "pdf_hash": "6f6f5d4f061f5d830a46a5abf58f8e77dfb78301b555571bd00c95774eb12ea2",
+  "text_hash": "250e30b084853e0d718140bdb53e2f45beba2c14cbf764a065e1557b0cf14cbe",
+  "page_hashes": [
+    "0b7a151014a66efa2664575cb3675aa26754bb5bb1e66163fcc315ed8e69b362",
+    "9bd14e6f74ce0eaca405bdc925d7a9a7b453070107a15bbf1cac12058268d126"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 2033,
+  "file_size": 146676,
+  "stored_at": "2026-01-13T14:34:02.735942"
+}

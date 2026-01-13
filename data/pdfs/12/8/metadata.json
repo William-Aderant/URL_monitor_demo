@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-537.pdf",
+  "version_number": 1,
+  "pdf_hash": "0fbf336938fc3e22cebbb4f49c9136dacb597881800bab9b327342696342b28e",
+  "text_hash": "f450af6a18f1db27f24b0082250d374dde30b85a952d7c91c46349e35b3fe912",
+  "page_hashes": [
+    "f450af6a18f1db27f24b0082250d374dde30b85a952d7c91c46349e35b3fe912"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1108,
+  "file_size": 125543,
+  "stored_at": "2026-01-13T14:31:28.250291"
+}

@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-734.pdf",
+  "version_number": 1,
+  "pdf_hash": "0813a7837911af8189edf755cb9ef8e44647c0a3ad2b1dbd34d98f0aca14a0ae",
+  "text_hash": "1743a0b316f03fd6f20f568563c89acaff292548a7b2d9119b9ba9dc585c1791",
+  "page_hashes": [
+    "1743a0b316f03fd6f20f568563c89acaff292548a7b2d9119b9ba9dc585c1791"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 833,
+  "file_size": 123958,
+  "stored_at": "2026-01-13T14:36:29.774946"
+}

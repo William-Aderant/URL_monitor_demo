@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-556.pdf",
+  "version_number": 1,
+  "pdf_hash": "0f72db31004a5ccc7859cf7c667637450806be74773d8a3ca1675dc3405ff545",
+  "text_hash": "38b44fc7f4e3c4bdf8d6c0d0353d6f7beedbbfa3b459718c932bad113ae5c866",
+  "page_hashes": [
+    "38b44fc7f4e3c4bdf8d6c0d0353d6f7beedbbfa3b459718c932bad113ae5c866"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1311,
+  "file_size": 128678,
+  "stored_at": "2026-01-13T14:36:59.455506"
+}

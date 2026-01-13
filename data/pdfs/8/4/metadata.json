@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-563.pdf",
+  "version_number": 1,
+  "pdf_hash": "6b5cc7b7b6023020669e7628547b9489066c0c424947f74f7a73290a0c2c742a",
+  "text_hash": "5537aaf107ae5e40d5126ee8ab8ef12af72ab79a4196c9399ec6f693f6a5ec1f",
+  "page_hashes": [
+    "885065ea0cf5066a811b3d103a78049934b22bf83a32470dc4f17463989e745c",
+    "cef048d63c329a7fab52a0155e917112a449a9a965b36afe967e6d2748cbf1c6"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1972,
+  "file_size": 561501,
+  "stored_at": "2026-01-13T14:31:11.016880"
+}

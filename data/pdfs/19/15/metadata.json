@@ -1,0 +1,21 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-760.pdf",
+  "version_number": 1,
+  "pdf_hash": "ea076069e1eb12cadd678477b838ef0bb855b01eac18a16971e681b35cdec330",
+  "text_hash": "f47b2522f91b633f98e7f538dae690411ffd59dc304d78aa861c52cc22ac15d9",
+  "page_hashes": [
+    "3af64c6480c41405e6d6d45c896fba79b90e31f0ddbdea76119e379d4e6625ed",
+    "2f05a83bad62b543103517377adc0970261fc9381a306fe921d68df8cc4a5193",
+    "990ee9be5e879247773aabd1f41daa72aa1aca526734e8a21cad329264726a8e",
+    "80b35e549d91b62e62c3553b5deab327f3e23435cb86dc335337ff80559c0b53",
+    "9ff6df87c44ce2c1d04cc3d9b4cfa1da4c625414872bef96c77319520ed56489",
+    "72c53641018131975cbb81b86661f32652660c377eb20ebcf9a589bd101661ff",
+    "b65b23b4aa47fe3124a28fdbbf8b103e13fb043c2e25ade0fb7ca265f07e7b90"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 7,
+  "text_length": 7839,
+  "file_size": 55223,
+  "stored_at": "2026-01-13T14:32:02.617686"
+}

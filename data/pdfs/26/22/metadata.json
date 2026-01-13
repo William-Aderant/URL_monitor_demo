@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-405.pdf",
+  "version_number": 1,
+  "pdf_hash": "28a11e58c3712c8a8dbbccb9caa0006f0f9078a5c5788c32de73e78e446a64f4",
+  "text_hash": "51463339afeb1447e36517407eb9ccb0dac49aef4f0566d26e111d38b8f79696",
+  "page_hashes": [
+    "51463339afeb1447e36517407eb9ccb0dac49aef4f0566d26e111d38b8f79696"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1543,
+  "file_size": 148409,
+  "stored_at": "2026-01-13T14:32:33.979736"
+}

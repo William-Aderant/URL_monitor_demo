@@ -1,0 +1,16 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-778.pdf",
+  "version_number": 1,
+  "pdf_hash": "8c0232b4800b2542704bdc1b384928eb183a4758dc52821a64c6c88f5232fd27",
+  "text_hash": "1545e190573bf5d612213d908b8379cec8fe1e78a0e11f9dc5222c96533c0873",
+  "page_hashes": [
+    "e652f2b92c52a6e4ae5be4f453db782b1303af376da31ce73cdb314b1a2b0a59",
+    "ef5986c72d8392a06f33da46435f719ffdf753f1f14447f082102493d1dccf1b"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 2,
+  "text_length": 1485,
+  "file_size": 148387,
+  "stored_at": "2026-01-13T14:35:09.493684"
+}

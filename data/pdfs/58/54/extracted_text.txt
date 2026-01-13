@@ -1,0 +1,17 @@
+POST JUDGMENT RECORD OF TRANSACTIONS
+Judgment Judgment
+Case # Case Name Creditor Debtor
+Judgment Amount Judgment Date Post Judgment Interest Rate
+ACTIVITY* COSTS INTEREST** ORIGINAL JUDGMENT
+AMOUNT
+n.
+a. b. c. d. e. f. g. h. i. j. k. l. m.
+Event or Accrued Paid Int. Calc. No. Accrued Paid Payt. Applied
+Total Due
+Date Receipt #/Check # Amount (Increase) (Decrease) Due Date*** Days (Increase) (Decrease) Due (Decrease) Balance
+Judgment Entered
+* ACTIVITY: This may include payments received, checks issued, writs issued, notices served, costs incurred, etc.
+** INTEREST: Original Judgment Amount Balance (column m) x Interest Rate ÷ 365 x Number of Days Since Interest Last Calculated (column h).
+*** This will be the date a writ is issued or the date of seizure (i.e., the date the money or property is removed from the control of the debtor).
+CIV-543 (4/89)(white cdsk)
+POST JUDGMENT RECORD OF TRANSACTIONS

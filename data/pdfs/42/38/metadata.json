@@ -1,0 +1,15 @@
+{
+  "url": "https://public.courts.alaska.gov/web/forms/docs/civ-860.pdf",
+  "version_number": 1,
+  "pdf_hash": "2acc23d65244906f0ce12270742e2452a546745b0e812c229fc45443f791f906",
+  "text_hash": "28175803e193c4ebea418faa45e3020e4dffc6fd9989269723d2aa032a470522",
+  "page_hashes": [
+    "28175803e193c4ebea418faa45e3020e4dffc6fd9989269723d2aa032a470522"
+  ],
+  "extraction_method": "pdfplumber",
+  "ocr_used": false,
+  "page_count": 1,
+  "text_length": 1613,
+  "file_size": 132337,
+  "stored_at": "2026-01-13T14:33:41.644657"
+}

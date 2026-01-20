@@ -2,9 +2,9 @@
 Change detection by comparing PDF versions.
 
 Determines if a PDF has changed by comparing:
-1. Normalized PDF hash (binary changes)
+1. Original PDF hash (binary changes)
 2. Extracted text hash (semantic changes)
-3. Per-page hashes (identify affected pages)
+3. Per-page hashes (identify affected pages with early termination)
 """
 
 import difflib
@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 class ChangeResult:
     """Result of change detection comparison."""
     changed: bool
-    change_type: str = ""  # new, unchanged, modified, text_changed, format_only
+    change_type: str = ""  # new, unchanged, modified, text_changed, format_only, title_changed
     pdf_hash_changed: bool = False
     text_hash_changed: bool = False
     affected_pages: list[int] = field(default_factory=list)
@@ -70,34 +70,120 @@ class ChangeDetector:
         Returns:
             ChangeResult with comparison details
         """
+        # #region agent log
+        import json
+        try:
+            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"change_detector.py:compare","message":"compare() entry","data":{"has_previous":previous_hashes is not None,"new_pdf_hash":new_hashes.pdf_hash[:16]+"..." if new_hashes.pdf_hash else None,"new_text_hash":new_hashes.text_hash[:16]+"..." if new_hashes.text_hash else None,"new_page_count":len(new_hashes.page_hashes)},"timestamp":int(__import__('time').time()*1000)})+'\n')
+        except: pass
+        # #endregion
+        
         # First version - always "new"
         if previous_hashes is None:
             logger.info("First version detected", change_type="new")
+            # #region agent log
+            try:
+                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"change_detector.py:compare","message":"First version - returning new","data":{},"timestamp":int(__import__('time').time()*1000)})+'\n')
+            except: pass
+            # #endregion
             return ChangeResult(
                 changed=True,
                 change_type="new"
             )
         
+        # Early termination: Compare page hashes first (fastest check)
+        # If no pages changed, we can skip expensive text comparison
+        # Then verify with similarity check to avoid false positives from extraction noise
+        changed_pages = self._compare_pages_with_similarity(
+            previous_hashes.page_hashes,
+            new_hashes.page_hashes,
+            previous_text,
+            new_text,
+            len(previous_hashes.page_hashes),
+            len(new_hashes.page_hashes)
+        )
+        
+        logger.debug(
+            "Page comparison with similarity check",
+            changed_pages=changed_pages,
+            new_page_count=len(new_hashes.page_hashes),
+            prev_page_count=len(previous_hashes.page_hashes)
+        )
+        
+        # #region agent log
+        try:
+            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Page hash comparison with similarity","data":{"changed_pages":changed_pages,"new_page_count":len(new_hashes.page_hashes),"prev_page_count":len(previous_hashes.page_hashes)},"timestamp":int(__import__('time').time()*1000)})+'\n')
+        except: pass
+        # #endregion
+        
+        # If no pages changed and page counts match, likely no change
+        if not changed_pages and len(new_hashes.page_hashes) == len(previous_hashes.page_hashes):
+            # Still check PDF and text hashes to be sure
+            pdf_changed = new_hashes.pdf_hash != previous_hashes.pdf_hash
+            text_changed = new_hashes.text_hash != previous_hashes.text_hash
+            
+            # #region agent log
+            try:
+                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Early termination check","data":{"pdf_changed":pdf_changed,"text_changed":text_changed,"will_return_early":not pdf_changed and not text_changed},"timestamp":int(__import__('time').time()*1000)})+'\n')
+            except: pass
+            # #endregion
+            
+            if not pdf_changed and not text_changed:
+                # No change detected - early exit
+                logger.info("No change detected (early termination)")
+                # #region agent log
+                try:
+                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Early exit - unchanged","data":{},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                except: pass
+                # #endregion
+                return ChangeResult(
+                    changed=False,
+                    change_type="unchanged"
+                )
+        
         # Compare hashes
         pdf_changed = new_hashes.pdf_hash != previous_hashes.pdf_hash
         text_changed = new_hashes.text_hash != previous_hashes.text_hash
         
+        # #region agent log
+        try:
+            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"change_detector.py:compare","message":"Full hash comparison","data":{"pdf_changed":pdf_changed,"text_changed":text_changed,"new_pdf_hash":new_hashes.pdf_hash[:16]+"..." if new_hashes.pdf_hash else None,"prev_pdf_hash":previous_hashes.pdf_hash[:16]+"..." if previous_hashes.pdf_hash else None,"new_text_hash":new_hashes.text_hash[:16]+"..." if new_hashes.text_hash else None,"prev_text_hash":previous_hashes.text_hash[:16]+"..." if previous_hashes.text_hash else None},"timestamp":int(__import__('time').time()*1000)})+'\n')
+        except: pass
+        # #endregion
+        
         logger.debug(
             "Hash comparison",
             pdf_changed=pdf_changed,
-            text_changed=text_changed
+            text_changed=text_changed,
+            new_text_hash=new_hashes.text_hash[:16] + "...",
+            prev_text_hash=previous_hashes.text_hash[:16] + "..."
         )
+        
+        # Additional similarity check to catch false positives
+        # If hashes differ but similarity is very high (>99.5%), it's likely extraction noise
+        if text_changed and new_text and previous_text:
+            similarity = self.get_similarity_ratio(previous_text, new_text)
+            if similarity >= 0.995:  # 99.5% similarity threshold
+                logger.warning(
+                    "Text hash differs but similarity is very high - likely extraction noise",
+                    similarity=f"{similarity:.3%}",
+                    treating_as="unchanged"
+                )
+                # Treat as unchanged - hash difference is likely due to extraction variations
+                text_changed = False
         
         # Determine change type
         if text_changed:
             # Semantic change - text content differs
             change_type = "text_changed"
             
-            # Find affected pages
-            affected_pages = self.hasher.compare_page_hashes(
-                previous_hashes.page_hashes,
-                new_hashes.page_hashes
-            )
+            # Use already computed changed pages (from early termination check)
+            affected_pages = changed_pages
             
             # Generate diff summary
             diff_summary = self._generate_diff_summary(previous_text, new_text)
@@ -140,6 +226,13 @@ class ChangeDetector:
                 pdf_hash_changed=True,
                 text_hash_changed=False
             )
+            
+            # #region agent log
+            try:
+                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"change_detector.py:compare","message":"Format-only change detected","data":{"pdf_changed":True,"text_changed":False},"timestamp":int(__import__('time').time()*1000)})+'\n')
+            except: pass
+            # #endregion
             
             return ChangeResult(
                 changed=True,  # Track format-only changes
@@ -263,4 +356,158 @@ class ChangeDetector:
             return 0.0
         
         return difflib.SequenceMatcher(None, old_text, new_text).ratio()
+    
+    def _normalize_text_for_comparison(self, text: str) -> str:
+        """
+        Normalize text for similarity comparison.
+        
+        Uses similar normalization as text hash computation to ensure consistency.
+        
+        Args:
+            text: Text to normalize
+            
+        Returns:
+            Normalized text
+        """
+        if not text:
+            return ""
+        
+        import re
+        
+        # Normalize whitespace (same as in Hasher.compute_text_hash)
+        normalized = ' '.join(text.split())
+        
+        # Remove zero-width spaces and other invisible characters
+        normalized = re.sub(r'[\u200b-\u200f\ufeff]', '', normalized)
+        
+        # Normalize quotes and apostrophes
+        normalized = normalized.replace('"', '"').replace('"', '"')
+        normalized = normalized.replace("'", "'").replace("'", "'")
+        
+        # Remove extra spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
+        
+        # Strip and lowercase for consistent comparison
+        return normalized.strip().lower()
+    
+    def _split_text_by_pages(self, text: str, page_count: int) -> list[str]:
+        """
+        Split full text into approximate page texts.
+        
+        Args:
+            text: Full extracted text
+            page_count: Number of pages
+            
+        Returns:
+            List of page texts
+        """
+        if page_count <= 1:
+            return [text] if text else [""]
+        
+        # Try to split by form feed characters (common page separator)
+        if "\f" in text:
+            pages = text.split("\f")
+            # Pad or trim to match page_count
+            while len(pages) < page_count:
+                pages.append("")
+            return pages[:page_count]
+        
+        # Otherwise, split approximately by length
+        lines = text.splitlines()
+        if not lines:
+            return [""] * page_count
+        
+        lines_per_page = max(1, len(lines) // page_count)
+        pages = []
+        
+        for i in range(page_count):
+            start = i * lines_per_page
+            end = start + lines_per_page if i < page_count - 1 else len(lines)
+            page_text = "\n".join(lines[start:end])
+            pages.append(page_text)
+        
+        return pages
+    
+    def _compare_pages_with_similarity(
+        self,
+        old_hashes: list[str],
+        new_hashes: list[str],
+        old_text: str,
+        new_text: str,
+        old_page_count: int,
+        new_page_count: int,
+        similarity_threshold: float = 0.995
+    ) -> list[int]:
+        """
+        Compare page hashes and verify with similarity checks.
+        
+        Only marks a page as changed if:
+        1. The page hash differs, AND
+        2. The actual page text similarity is below threshold
+        
+        This prevents false positives from extraction noise.
+        
+        Args:
+            old_hashes: Previous version page hashes
+            new_hashes: New version page hashes
+            old_text: Previous version full text
+            new_text: New version full text
+            old_page_count: Previous version page count
+            new_page_count: New version page count
+            similarity_threshold: Minimum similarity to consider unchanged (default 99.5%)
+            
+        Returns:
+            List of 1-indexed page numbers that actually changed
+        """
+        changed_pages = []
+        
+        # Split texts into pages
+        old_page_texts = self._split_text_by_pages(old_text, old_page_count)
+        new_page_texts = self._split_text_by_pages(new_text, new_page_count)
+        
+        # Compare each page
+        max_pages = max(len(old_hashes), len(new_hashes))
+        
+        for i in range(max_pages):
+            old_hash = old_hashes[i] if i < len(old_hashes) else None
+            new_hash = new_hashes[i] if i < len(new_hashes) else None
+            
+            # If hashes are the same, page is unchanged
+            if old_hash == new_hash:
+                continue
+            
+            # Hashes differ - check actual text similarity
+            old_page_text = old_page_texts[i] if i < len(old_page_texts) else ""
+            new_page_text = new_page_texts[i] if i < len(new_page_texts) else ""
+            
+            # If one page is missing (page added/removed), mark as changed
+            if (old_hash is None) != (new_hash is None):
+                changed_pages.append(i + 1)  # 1-indexed
+                continue
+            
+            # Both pages exist - normalize and compare with similarity
+            # Normalize texts similar to how text hash is computed (for consistency)
+            old_normalized = self._normalize_text_for_comparison(old_page_text)
+            new_normalized = self._normalize_text_for_comparison(new_page_text)
+            
+            similarity = self.get_similarity_ratio(old_normalized, new_normalized)
+            
+            # Only mark as changed if similarity is below threshold
+            if similarity < similarity_threshold:
+                changed_pages.append(i + 1)  # 1-indexed
+                logger.debug(
+                    "Page marked as changed after similarity check",
+                    page=i + 1,
+                    similarity=f"{similarity:.3%}",
+                    threshold=f"{similarity_threshold:.3%}"
+                )
+            else:
+                logger.debug(
+                    "Page hash differs but similarity is high - treating as unchanged",
+                    page=i + 1,
+                    similarity=f"{similarity:.3%}",
+                    threshold=f"{similarity_threshold:.3%}"
+                )
+        
+        return changed_pages
 

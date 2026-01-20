@@ -1,1 +1,6 @@
 .env
+*.png
+*.pdf
+/data
+.cursor/debug.log
+.cursor/debug.log

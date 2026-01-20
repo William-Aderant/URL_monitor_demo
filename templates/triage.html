@@ -1,0 +1,590 @@
+{% extends "base.html" %}
+
+{% block title %}AI Triage Dashboard - PDF Monitor{% endblock %}
+
+{% block content %}
+<style>
+    .triage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .triage-header h1 {
+        margin-bottom: 0;
+    }
+    
+    .filter-bar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }
+    
+    .filter-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .filter-label {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .filter-btn {
+        padding: 6px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .filter-btn:hover {
+        background: var(--border);
+    }
+    
+    .filter-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+    }
+    
+    .bulk-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+    }
+    
+    .confidence-bar {
+        width: 80px;
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 4px;
+    }
+    
+    .confidence-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s;
+    }
+    
+    .confidence-high { background: var(--success); }
+    .confidence-medium { background: var(--warning); }
+    .confidence-low { background: var(--error); }
+    
+    .action-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .action-auto-approve { background: rgba(0, 186, 124, 0.15); color: var(--success); }
+    .action-review-suggested { background: rgba(255, 173, 31, 0.15); color: var(--warning); }
+    .action-manual-required { background: rgba(244, 33, 46, 0.15); color: var(--error); }
+    .action-false-positive { background: var(--bg-tertiary); color: var(--text-secondary); }
+    .action-new-form { background: rgba(29, 155, 240, 0.15); color: var(--accent); }
+    
+    .status-pending { color: var(--warning); }
+    .status-approved { color: var(--success); }
+    .status-rejected { color: var(--error); }
+    .status-deferred { color: var(--text-secondary); }
+    .status-auto_approved { color: var(--success); }
+    
+    .select-all-row {
+        background: var(--bg-tertiary);
+    }
+    
+    .select-all-row td {
+        padding: 8px 16px;
+    }
+    
+    .change-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    
+    .rationale-text {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+        max-width: 200px;
+    }
+    
+    .priority-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+    
+    .priority-1 { background: var(--error); }
+    .priority-2 { background: var(--warning); }
+    .priority-3 { background: var(--warning); opacity: 0.7; }
+    .priority-4 { background: var(--success); }
+    .priority-5 { background: var(--text-secondary); }
+    
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+    }
+    
+    .modal h2 {
+        margin-bottom: 16px;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+        justify-content: flex-end;
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-group label {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 6px;
+    }
+    
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-family: inherit;
+        resize: vertical;
+    }
+    
+    .automation-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+    
+    .automation-stat {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+    
+    .automation-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .automation-stat-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+</style>
+
+<div class="triage-header">
+    <h1>🎯 AI Triage Dashboard</h1>
+    <form method="POST" action="/monitor/run" style="margin: 0;">
+        <button type="submit" class="btn btn-primary">
+            🔄 Run Monitoring
+        </button>
+    </form>
+</div>
+
+<!-- Automation Stats -->
+<div class="automation-stats">
+    <div class="automation-stat">
+        <div class="automation-stat-value" style="color: var(--text-primary);">{{ stats.total }}</div>
+        <div class="automation-stat-label">Total Changes</div>
+    </div>
+    <div class="automation-stat">
+        <div class="automation-stat-value" style="color: var(--warning);">{{ stats.pending }}</div>
+        <div class="automation-stat-label">Pending Review</div>
+    </div>
+    <div class="automation-stat">
+        <div class="automation-stat-value" style="color: var(--success);">{{ stats.approved }}</div>
+        <div class="automation-stat-label">Approved</div>
+    </div>
+    <div class="automation-stat">
+        <div class="automation-stat-value" style="color: var(--success);">{{ "%.0f"|format(stats.automation_rate * 100) }}%</div>
+        <div class="automation-stat-label">Automation Rate</div>
+    </div>
+    <div class="automation-stat">
+        <div class="automation-stat-value" style="color: var(--accent);">{{ "%.0f"|format(stats.review_rate * 100) }}%</div>
+        <div class="automation-stat-label">Review Rate</div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="filter-group">
+        <span class="filter-label">Status:</span>
+        <button class="filter-btn {% if current_filter == 'all' %}active{% endif %}" 
+                onclick="filterByStatus('all')">All</button>
+        <button class="filter-btn {% if current_filter == 'pending' %}active{% endif %}" 
+                onclick="filterByStatus('pending')">⏳ Pending</button>
+        <button class="filter-btn {% if current_filter == 'approved' %}active{% endif %}" 
+                onclick="filterByStatus('approved')">✅ Approved</button>
+        <button class="filter-btn {% if current_filter == 'rejected' %}active{% endif %}" 
+                onclick="filterByStatus('rejected')">❌ Rejected</button>
+    </div>
+    
+    <div class="filter-group">
+        <span class="filter-label">Action:</span>
+        <button class="filter-btn {% if action_filter == 'manual_required' %}active{% endif %}" 
+                onclick="filterByAction('manual_required')">🔴 Manual Required</button>
+        <button class="filter-btn {% if action_filter == 'review_suggested' %}active{% endif %}" 
+                onclick="filterByAction('review_suggested')">🟡 Review Suggested</button>
+        <button class="filter-btn {% if action_filter == 'auto_approve' %}active{% endif %}" 
+                onclick="filterByAction('auto_approve')">🟢 Auto-Approve</button>
+    </div>
+    
+    <div class="bulk-actions">
+        <button class="btn btn-secondary btn-sm" onclick="bulkApprove()" id="bulk-approve-btn" disabled>
+            ✅ Approve Selected
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="bulkReject()" id="bulk-reject-btn" disabled>
+            ❌ Reject Selected
+        </button>
+    </div>
+</div>
+
+{% if changes %}
+<div class="card">
+    <table>
+        <thead>
+            <tr class="select-all-row">
+                <td colspan="8">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="select-all" class="change-checkbox" onchange="toggleSelectAll()">
+                        <span style="font-size: 0.875rem;">Select all on this page</span>
+                    </label>
+                </td>
+            </tr>
+            <tr>
+                <th style="width: 40px;"></th>
+                <th>Form / URL</th>
+                <th>Change Type</th>
+                <th>AI Recommendation</th>
+                <th>Confidence</th>
+                <th>Review Status</th>
+                <th>Detected</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in changes %}
+            <tr data-change-id="{{ item.change.id }}" 
+                data-status="{{ item.change.review_status or 'pending' }}"
+                data-action="{{ item.change.recommended_action or 'unknown' }}">
+                <td>
+                    <input type="checkbox" class="change-checkbox" 
+                           value="{{ item.change.id }}" 
+                           onchange="updateBulkButtons()">
+                </td>
+                <td>
+                    <div class="card-title">{{ item.url_name }}</div>
+                    <div class="card-subtitle">
+                        {% if item.change.new_version %}
+                            {% if item.change.new_version.formatted_title %}
+                                {{ item.change.new_version.formatted_title }}
+                                {% if item.change.new_version.form_number %}
+                                    <span style="color: var(--accent);">{{"{"}}{{ item.change.new_version.form_number }}{{"}"}}</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% if item.change.relocated_from_url %}
+                    <div style="margin-top: 6px; font-size: 0.75rem; color: var(--warning);">
+                        📍 URL Changed
+                    </div>
+                    {% endif %}
+                    {% if item.change.change_type == 'relocation_failed' %}
+                    <div style="margin-top: 6px; padding: 6px; background: rgba(244, 33, 46, 0.15); border-left: 3px solid var(--error); border-radius: 4px; font-size: 0.75rem;">
+                        <div style="color: var(--error); font-weight: 600;">⚠️ Relocation Failed</div>
+                        <div style="color: var(--text-secondary); margin-top: 2px;">
+                            Form is inaccessible. Could not find relocated form.
+                        </div>
+                        {% if item.change.diff_summary %}
+                        <div style="color: var(--text-secondary); margin-top: 4px; font-size: 0.7rem;">
+                            {{ item.change.diff_summary }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'format_only' %}badge-neutral{% elif item.change.change_type == 'relocation_failed' %}badge-error{% else %}badge-success{% endif %}">
+                        {{ item.change.change_type|replace('_', ' ')|title }}
+                    </span>
+                    {% if item.change.change_type == 'relocation_failed' %}
+                    <div style="margin-top: 4px;">
+                        <span class="badge badge-error" style="font-size: 0.6rem;">🔍 Form Inaccessible</span>
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set action = item.change.recommended_action or 'unknown' %}
+                    <span class="action-badge action-{{ action }}">
+                        <span class="priority-indicator priority-{{ item.priority or 3 }}"></span>
+                        {% if action == 'auto_approve' %}
+                            ✅ Auto-Approve
+                        {% elif action == 'review_suggested' %}
+                            👀 Review Suggested
+                        {% elif action == 'manual_required' %}
+                            ⚠️ Manual Required
+                        {% elif action == 'false_positive' %}
+                            🚫 False Positive
+                        {% elif action == 'new_form' %}
+                            🆕 New Form
+                        {% else %}
+                            ❓ Unknown
+                        {% endif %}
+                    </span>
+                    {% if item.change.action_rationale %}
+                    <div class="rationale-text" title="{{ item.change.action_rationale }}">
+                        {{ item.change.action_rationale[:50] }}{% if item.change.action_rationale|length > 50 %}...{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set confidence = item.change.action_confidence or item.change.similarity_score or 0 %}
+                    <div style="font-weight: 600;">{{ "%.0f"|format(confidence * 100) }}%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill {% if confidence >= 0.9 %}confidence-high{% elif confidence >= 0.7 %}confidence-medium{% else %}confidence-low{% endif %}"
+                             style="width: {{ confidence * 100 }}%;"></div>
+                    </div>
+                </td>
+                <td>
+                    {% set status = item.change.review_status or 'pending' %}
+                    <span class="status-{{ status }}" style="font-weight: 600;">
+                        {% if status == 'pending' %}⏳ Pending
+                        {% elif status == 'approved' %}✅ Approved
+                        {% elif status == 'rejected' %}❌ Rejected
+                        {% elif status == 'deferred' %}⏸️ Deferred
+                        {% elif status == 'auto_approved' %}🤖 Auto-Approved
+                        {% else %}{{ status|title }}
+                        {% endif %}
+                    </span>
+                    {% if item.change.reviewed_at %}
+                    <div class="card-subtitle">
+                        {{ item.change.reviewed_at.strftime('%m/%d %H:%M') }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="timestamp">{{ item.change.detected_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <a href="/url/{{ item.change.monitored_url_id }}" class="btn btn-secondary btn-sm">View</a>
+                        {% if item.change.review_status != 'approved' %}
+                        <button class="btn btn-primary btn-sm" onclick="approveChange({{ item.change.id }})">✓</button>
+                        {% endif %}
+                        {% if item.change.review_status != 'rejected' %}
+                        <button class="btn btn-secondary btn-sm" onclick="rejectChange({{ item.change.id }})" style="color: var(--error);">✗</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">🎯</div>
+        <h2>No Changes to Triage</h2>
+        <p>All changes have been reviewed, or no changes have been detected yet.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Review Modal -->
+<div class="modal-overlay" id="review-modal">
+    <div class="modal">
+        <h2 id="modal-title">Review Change</h2>
+        <div class="form-group">
+            <label for="review-notes">Notes (optional)</label>
+            <textarea id="review-notes" rows="3" placeholder="Add any notes about this review..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" id="modal-confirm" onclick="confirmReview()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let pendingAction = null;
+    let pendingIds = [];
+    
+    function filterByStatus(status) {
+        const url = new URL(window.location);
+        url.searchParams.set('status', status);
+        window.location = url.toString();
+    }
+    
+    function filterByAction(action) {
+        const url = new URL(window.location);
+        if (url.searchParams.get('action') === action) {
+            url.searchParams.delete('action');
+        } else {
+            url.searchParams.set('action', action);
+        }
+        window.location = url.toString();
+    }
+    
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('select-all');
+        const checkboxes = document.querySelectorAll('tbody .change-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        updateBulkButtons();
+    }
+    
+    function updateBulkButtons() {
+        const checked = document.querySelectorAll('tbody .change-checkbox:checked');
+        const approveBtn = document.getElementById('bulk-approve-btn');
+        const rejectBtn = document.getElementById('bulk-reject-btn');
+        
+        if (approveBtn) approveBtn.disabled = checked.length === 0;
+        if (rejectBtn) rejectBtn.disabled = checked.length === 0;
+    }
+    
+    function getSelectedIds() {
+        const checkboxes = document.querySelectorAll('tbody .change-checkbox:checked');
+        return Array.from(checkboxes).map(cb => parseInt(cb.value));
+    }
+    
+    function approveChange(changeId) {
+        pendingAction = 'approved';
+        pendingIds = [changeId];
+        document.getElementById('modal-title').textContent = 'Approve Change';
+        document.getElementById('modal-confirm').textContent = 'Approve';
+        document.getElementById('review-modal').classList.add('active');
+    }
+    
+    function rejectChange(changeId) {
+        pendingAction = 'rejected';
+        pendingIds = [changeId];
+        document.getElementById('modal-title').textContent = 'Reject Change';
+        document.getElementById('modal-confirm').textContent = 'Reject';
+        document.getElementById('review-modal').classList.add('active');
+    }
+    
+    function bulkApprove() {
+        pendingAction = 'approved';
+        pendingIds = getSelectedIds();
+        document.getElementById('modal-title').textContent = `Approve ${pendingIds.length} Changes`;
+        document.getElementById('modal-confirm').textContent = 'Approve All';
+        document.getElementById('review-modal').classList.add('active');
+    }
+    
+    function bulkReject() {
+        pendingAction = 'rejected';
+        pendingIds = getSelectedIds();
+        document.getElementById('modal-title').textContent = `Reject ${pendingIds.length} Changes`;
+        document.getElementById('modal-confirm').textContent = 'Reject All';
+        document.getElementById('review-modal').classList.add('active');
+    }
+    
+    function closeModal() {
+        document.getElementById('review-modal').classList.remove('active');
+        document.getElementById('review-notes').value = '';
+        pendingAction = null;
+        pendingIds = [];
+    }
+    
+    async function confirmReview() {
+        const notes = document.getElementById('review-notes').value;
+        
+        try {
+            const response = await fetch('/api/triage/bulk-review', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    change_ids: pendingIds,
+                    action: pendingAction,
+                    notes: notes
+                })
+            });
+            
+            if (response.ok) {
+                // Reload page to show updated status
+                window.location.reload();
+            } else {
+                const data = await response.json();
+                alert('Error: ' + (data.detail || 'Failed to process review'));
+            }
+        } catch (error) {
+            console.error('Review failed:', error);
+            alert('Failed to submit review. Please try again.');
+        }
+        
+        closeModal();
+    }
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+    
+    // Close modal on backdrop click
+    document.getElementById('review-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'review-modal') closeModal();
+    });
+</script>
+{% endblock %}

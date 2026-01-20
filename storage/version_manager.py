@@ -43,7 +43,6 @@ class VersionManager:
         db: Session,
         monitored_url: MonitoredURL,
         original_pdf_path: Path,
-        normalized_pdf_path: Path,
         extracted_text: str,
         page_texts: list[str],
         hashes: HashResult,
@@ -59,7 +58,6 @@ class VersionManager:
             db: Database session
             monitored_url: MonitoredURL record
             original_pdf_path: Path to original PDF
-            normalized_pdf_path: Path to normalized PDF
             extracted_text: Extracted text content
             page_texts: Per-page extracted text
             hashes: Computed hash result
@@ -84,7 +82,7 @@ class VersionManager:
             monitored_url_id=monitored_url.id,
             version_number=version_number,
             original_pdf_path="",  # Will update after storing
-            normalized_pdf_path="",
+            normalized_pdf_path="",  # Keep for backward compatibility, but store original
             extracted_text_path="",
             pdf_hash=hashes.pdf_hash,
             text_hash=hashes.text_hash,
@@ -106,10 +104,12 @@ class VersionManager:
             original_pdf_path
         )
         
+        # Store original PDF as "normalized" for backward compatibility
+        # (normalized_pdf_path field still exists in DB but now contains original)
         stored_normalized = self.file_store.store_normalized_pdf(
             monitored_url.id,
             version.id,
-            normalized_pdf_path
+            original_pdf_path
         )
         
         stored_text = self.file_store.store_extracted_text(
@@ -315,23 +315,18 @@ class VersionManager:
         version_id: int
     ) -> Optional[Path]:
         """
-        Get full path to normalized PDF.
+        Get full path to PDF (returns original, normalized field kept for backward compatibility).
         
         Args:
             db: Database session
             version_id: Version ID
             
         Returns:
-            Path to normalized PDF or None
+            Path to PDF or None
         """
-        version = self.get_version(db, version_id)
-        if not version:
-            return None
-        
-        return self.file_store.get_normalized_pdf(
-            version.monitored_url_id,
-            version.id
-        )
+        # For backward compatibility, return original PDF
+        # (normalized_pdf_path in DB now stores original PDF)
+        return self.get_original_pdf_path(db, version_id)
     
     def get_recent_changes(
         self,

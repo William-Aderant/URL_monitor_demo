@@ -96,7 +96,9 @@ def import_urls_from_file(filepath: str, db_session) -> int:
                     name=f"Alaska {name}",
                     url=url,
                     description=f"Alaska Court Form {name}",
-                    parent_page_url=parent_page_url
+                    parent_page_url=parent_page_url,
+                    state="Alaska",
+                    domain_category="courts.alaska.gov"
                 )
                 db_session.add(monitored_url)
                 added += 1
@@ -127,7 +129,9 @@ def add_test_server(db_session) -> bool:
         monitored_url = MonitoredURL(
             name="Local Test Server",
             url=url,
-            description="Local test server for simulating website updates"
+            description="Local test server for simulating website updates",
+            state="Test",
+            domain_category="localhost"
         )
         db_session.add(monitored_url)
         db_session.commit()
@@ -151,19 +155,25 @@ def add_test_pdfs(db_session) -> int:
             "name": "Test CIV-001 - Motion to Dismiss",
             "url": "http://localhost:5001/pdfs/civ-001.pdf",
             "description": "Test form: Motion to Dismiss - Smith v. Jones",
-            "parent_page_url": "http://localhost:5001/pdfs/"
+            "parent_page_url": "http://localhost:5001/pdfs/",
+            "state": "Test",
+            "domain_category": "localhost"
         },
         {
             "name": "Test CIV-002 - Petition for Custody",
             "url": "http://localhost:5001/pdfs/civ-002.pdf",
             "description": "Test form: Petition for Custody - Davis v. Davis",
-            "parent_page_url": "http://localhost:5001/pdfs/"
+            "parent_page_url": "http://localhost:5001/pdfs/",
+            "state": "Test",
+            "domain_category": "localhost"
         },
         {
             "name": "Test CIV-003 - Petition for Appeal",
             "url": "http://localhost:5001/pdfs/civ-003.pdf",
             "description": "Test form: Petition for Appeal - Garcia v. State",
-            "parent_page_url": "http://localhost:5001/pdfs/"
+            "parent_page_url": "http://localhost:5001/pdfs/",
+            "state": "Test",
+            "domain_category": "localhost"
         }
     ]
     

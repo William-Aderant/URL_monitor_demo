@@ -34,3 +34,6 @@ structlog>=23.1.0
 
 # Flask for test server
 flask>=3.0.0
+
+# Excel file parsing (for importing URLs from XLS)
+xlrd>=2.0.0

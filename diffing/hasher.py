@@ -2,7 +2,7 @@
 Hash computation for PDF change detection.
 
 Computes:
-- SHA-256 hash of normalized PDF bytes
+- SHA-256 hash of original PDF bytes
 - SHA-256 hash of extracted text
 - Per-page text hashes for granular change detection
 """
@@ -19,7 +19,7 @@ logger = structlog.get_logger()
 @dataclass
 class HashResult:
     """Result of hash computation."""
-    pdf_hash: str  # SHA-256 of normalized PDF bytes
+    pdf_hash: str  # SHA-256 of original PDF bytes
     text_hash: str  # SHA-256 of extracted text
     page_hashes: list[str] = field(default_factory=list)  # Per-page text hashes
     file_size: int = 0
@@ -31,7 +31,7 @@ class Hasher:
     Computes hashes for PDF change detection.
     
     Uses SHA-256 for all hashes:
-    - PDF hash: Binary hash of normalized PDF for exact binary comparison
+    - PDF hash: Binary hash of original PDF for exact binary comparison
     - Text hash: Hash of extracted text for semantic comparison
     - Page hashes: Per-page hashes for identifying which pages changed
     """
@@ -61,7 +61,7 @@ class Hasher:
         """
         Compute SHA-256 hash of text.
         
-        Normalizes whitespace before hashing for consistent comparison.
+        Normalizes whitespace and removes common variations before hashing for consistent comparison.
         
         Args:
             text: Text to hash
@@ -69,8 +69,32 @@ class Hasher:
         Returns:
             Hex-encoded SHA-256 hash
         """
-        # Normalize whitespace for consistent hashing
+        if not text:
+            return hashlib.sha256(b'').hexdigest()
+        
+        # More aggressive normalization:
+        # 1. Remove all whitespace (spaces, tabs, newlines) and replace with single space
+        # 2. Lowercase for case-insensitive comparison
+        # 3. Remove common punctuation variations
+        import re
+        
+        # Normalize whitespace
         normalized = ' '.join(text.split())
+        
+        # Remove common variations that don't affect meaning
+        # Remove zero-width spaces and other invisible characters
+        normalized = re.sub(r'[\u200b-\u200f\ufeff]', '', normalized)
+        
+        # Normalize quotes and apostrophes
+        normalized = normalized.replace('"', '"').replace('"', '"')
+        normalized = normalized.replace("'", "'").replace("'", "'")
+        
+        # Remove extra spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
+        
+        # Strip and lowercase for consistent comparison
+        normalized = normalized.strip().lower()
+        
         return hashlib.sha256(normalized.encode('utf-8')).hexdigest()
     
     @staticmethod
@@ -88,7 +112,7 @@ class Hasher:
     
     def compute_hashes(
         self,
-        normalized_pdf_path: Path,
+        pdf_path: Path,
         extracted_text: str,
         page_texts: list[str]
     ) -> HashResult:
@@ -96,18 +120,18 @@ class Hasher:
         Compute all hashes for a PDF.
         
         Args:
-            normalized_pdf_path: Path to normalized PDF file
+            pdf_path: Path to original PDF file
             extracted_text: Full extracted text
             page_texts: List of per-page extracted text
             
         Returns:
             HashResult with all computed hashes
         """
-        logger.debug("Computing hashes", pdf_path=str(normalized_pdf_path))
+        logger.debug("Computing hashes", pdf_path=str(pdf_path))
         
         # Compute PDF hash
-        pdf_hash = self.compute_file_hash(normalized_pdf_path)
-        file_size = normalized_pdf_path.stat().st_size
+        pdf_hash = self.compute_file_hash(pdf_path)
+        file_size = pdf_path.stat().st_size
         
         # Compute text hash
         text_hash = self.compute_text_hash(extracted_text)

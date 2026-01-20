@@ -57,6 +57,16 @@ tbody tr.row-changed:hover {
     background-color: rgba(255, 255, 0, 0.25) !important;
 }
 
+/* Red highlighting for error rows (relocation failed, etc.) */
+tbody tr.row-error {
+    background-color: rgba(244, 33, 46, 0.1) !important;
+    border-left: 4px solid var(--error);
+}
+
+tbody tr.row-error:hover {
+    background-color: rgba(244, 33, 46, 0.15) !important;
+}
+
 /* Relocated form badge */
 .badge-relocated {
     background-color: #ff9800 !important;
@@ -105,6 +115,16 @@ tbody tr.row-changed:hover {
 /* Button press effect */
 .btn:active {
     transform: scale(0.98);
+}
+
+/* Table cell constraints */
+table td {
+    word-wrap: break-word;
+    max-width: 0; /* Forces cells to respect column width */
+}
+
+table th, table td {
+    vertical-align: middle;
 }
 
 /* Responsive adjustments */

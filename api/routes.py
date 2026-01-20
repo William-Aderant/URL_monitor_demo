@@ -23,10 +23,17 @@ from api.schemas import (
     ChangeLogResponse,
     MonitoringRunRequest,
     MonitoringRunResponse,
-    StatusResponse
+    StatusResponse,
+    ReviewRequest,
+    ReviewResponse,
+    BulkReviewRequest,
+    BulkReviewResponse,
+    ClassificationOverrideRequest
 )
 from storage.file_store import FileStore
 from storage.version_manager import VersionManager
+from services.action_recommender import action_recommender, ActionType
+from services.metrics_tracker import metrics_tracker
 
 router = APIRouter()
 
@@ -43,30 +50,110 @@ version_manager = VersionManager(file_store)
 # ============================================================================
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, db: Session = Depends(get_db)):
-    """Dashboard showing all enabled monitored URLs."""
-    urls = db.query(MonitoredURL).filter(MonitoredURL.enabled == True).order_by(MonitoredURL.name).all()
+async def dashboard(
+    request: Request,
+    state: Optional[str] = None,
+    domain: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Dashboard showing all enabled monitored URLs with optional filtering."""
+    from sqlalchemy import func, desc
     
-    # Enrich with version counts
-    url_data = []
-    for url in urls:
-        version_count = db.query(PDFVersion).filter(
-            PDFVersion.monitored_url_id == url.id
-        ).count()
+    # Build query with filters
+    query = db.query(MonitoredURL).filter(MonitoredURL.enabled == True)
+    
+    if state:
+        query = query.filter(MonitoredURL.state == state)
+    
+    if domain:
+        query = query.filter(MonitoredURL.domain_category == domain)
+    
+    urls = query.order_by(MonitoredURL.name).all()
+    
+    if not urls:
+        url_data = []
+    else:
+        # Optimize: Use bulk queries instead of N+1 queries
+        url_ids = [url.id for url in urls]
         
-        latest_version = version_manager.get_latest_version(db, url.id)
+        # Get version counts for all URLs in one query
+        version_counts = db.query(
+            PDFVersion.monitored_url_id,
+            func.count(PDFVersion.id).label('count')
+        ).filter(
+            PDFVersion.monitored_url_id.in_(url_ids)
+        ).group_by(PDFVersion.monitored_url_id).all()
         
-        # Get most recent change
-        recent_change = db.query(ChangeLog).filter(
-            ChangeLog.monitored_url_id == url.id
-        ).order_by(ChangeLog.detected_at.desc()).first()
+        version_count_map = {url_id: count for url_id, count in version_counts}
         
-        url_data.append({
-            "url": url,
-            "version_count": version_count,
-            "latest_version": latest_version,
-            "recent_change": recent_change
-        })
+        # Get latest versions for all URLs using subquery approach (more compatible)
+        # For each URL, get the max version_number, then join to get the full record
+        max_versions_subq = db.query(
+            PDFVersion.monitored_url_id,
+            func.max(PDFVersion.version_number).label('max_version')
+        ).filter(
+            PDFVersion.monitored_url_id.in_(url_ids)
+        ).group_by(PDFVersion.monitored_url_id).subquery()
+        
+        latest_versions = db.query(PDFVersion).join(
+            max_versions_subq,
+            (PDFVersion.monitored_url_id == max_versions_subq.c.monitored_url_id) &
+            (PDFVersion.version_number == max_versions_subq.c.max_version)
+        ).all()
+        
+        latest_version_map = {v.monitored_url_id: v for v in latest_versions}
+        
+        # Get most recent changes for all URLs using subquery approach
+        max_changes_subq = db.query(
+            ChangeLog.monitored_url_id,
+            func.max(ChangeLog.detected_at).label('max_detected_at')
+        ).filter(
+            ChangeLog.monitored_url_id.in_(url_ids)
+        ).group_by(ChangeLog.monitored_url_id).subquery()
+        
+        recent_changes = db.query(ChangeLog).join(
+            max_changes_subq,
+            (ChangeLog.monitored_url_id == max_changes_subq.c.monitored_url_id) &
+            (ChangeLog.detected_at == max_changes_subq.c.max_detected_at)
+        ).all()
+        
+        recent_change_map = {c.monitored_url_id: c for c in recent_changes}
+        
+        # Build url_data list
+        url_data = []
+        for url in urls:
+            url_data.append({
+                "url": url,
+                "version_count": version_count_map.get(url.id, 0),
+                "latest_version": latest_version_map.get(url.id),
+                "recent_change": recent_change_map.get(url.id)
+            })
+    
+    # Get state counts for tabs
+    state_counts = db.query(
+        MonitoredURL.state,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.enabled == True,
+        MonitoredURL.state.isnot(None)
+    ).group_by(MonitoredURL.state).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    # Get domain counts for grouping (only for current state filter)
+    domain_query = db.query(
+        MonitoredURL.domain_category,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.enabled == True,
+        MonitoredURL.domain_category.isnot(None)
+    )
+    if state:
+        domain_query = domain_query.filter(MonitoredURL.state == state)
+    domain_counts = domain_query.group_by(
+        MonitoredURL.domain_category
+    ).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    # Total count across all states
+    total_count = db.query(MonitoredURL).filter(MonitoredURL.enabled == True).count()
     
     # Check for query parameters
     query_params = request.query_params
@@ -88,7 +175,12 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
             "urls": url_data,
             "now": datetime.utcnow(),
             "message": message,
-            "message_type": message_type
+            "message_type": message_type,
+            "current_state": state,
+            "current_domain": domain,
+            "state_counts": state_counts,
+            "domain_counts": domain_counts,
+            "total_count": total_count
         }
     )
     # Prevent caching
@@ -153,6 +245,139 @@ async def changes_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/triage", response_class=HTMLResponse)
+async def triage_dashboard(
+    request: Request,
+    status: str = "all",
+    action: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    AI Triage Dashboard - Screen 1 from PoC.
+    Shows changes with AI recommendations and allows bulk approval/rejection.
+    """
+    # Build query
+    query = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(MonitoredURL.enabled == True)
+    
+    # Filter by review status
+    if status != "all":
+        query = query.filter(ChangeLog.review_status == status)
+    
+    # Filter by recommended action
+    if action:
+        query = query.filter(ChangeLog.recommended_action == action)
+    
+    # Order by priority (manual_required first, then new_form, etc.)
+    changes = query.order_by(ChangeLog.detected_at.desc()).limit(100).all()
+    
+    # Calculate priority based on recommended action
+    priority_map = {
+        "manual_required": 1,
+        "new_form": 2,
+        "review_suggested": 3,
+        "auto_approve": 4,
+        "false_positive": 5,
+    }
+    
+    # Enrich with URL names and priorities
+    change_data = []
+    for change in changes:
+        url = db.query(MonitoredURL).filter(
+            MonitoredURL.id == change.monitored_url_id
+        ).first()
+        
+        change_data.append({
+            "change": change,
+            "url_name": url.name if url else "Unknown",
+            "url_url": url.url if url else "",
+            "priority": priority_map.get(change.recommended_action, 3)
+        })
+    
+    # Sort by priority
+    change_data.sort(key=lambda x: (x["priority"], x["change"].detected_at), reverse=False)
+    
+    # Calculate stats
+    total_changes = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(MonitoredURL.enabled == True).count()
+    
+    pending_count = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(
+        MonitoredURL.enabled == True,
+        ChangeLog.review_status == "pending"
+    ).count()
+    
+    approved_count = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(
+        MonitoredURL.enabled == True,
+        ChangeLog.review_status.in_(["approved", "auto_approved"])
+    ).count()
+    
+    auto_approved_count = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(
+        MonitoredURL.enabled == True,
+        ChangeLog.recommended_action.in_(["auto_approve", "false_positive"])
+    ).count()
+    
+    manual_required_count = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(
+        MonitoredURL.enabled == True,
+        ChangeLog.recommended_action.in_(["manual_required", "new_form"])
+    ).count()
+    
+    automation_rate = auto_approved_count / total_changes if total_changes > 0 else 0
+    review_rate = manual_required_count / total_changes if total_changes > 0 else 0
+    
+    stats = {
+        "total": total_changes,
+        "pending": pending_count,
+        "approved": approved_count,
+        "automation_rate": automation_rate,
+        "review_rate": review_rate,
+    }
+    
+    return templates.TemplateResponse(
+        "triage.html",
+        {
+            "request": request,
+            "changes": change_data,
+            "stats": stats,
+            "current_filter": status,
+            "action_filter": action,
+            "now": datetime.utcnow()
+        }
+    )
+
+
+@router.get("/metrics", response_class=HTMLResponse)
+async def metrics_dashboard(request: Request, db: Session = Depends(get_db)):
+    """
+    Metrics Dashboard - Shows KPIs and trends.
+    Replaces manual spreadsheet tracking per PoC Section 5.
+    """
+    # Get dashboard metrics
+    metrics = metrics_tracker.get_dashboard_metrics(db)
+    
+    # Get AI accuracy report
+    accuracy = metrics_tracker.get_ai_accuracy(db, days=30)
+    
+    return templates.TemplateResponse(
+        "metrics.html",
+        {
+            "request": request,
+            "metrics": metrics,
+            "accuracy": accuracy,
+            "now": datetime.utcnow()
+        }
+    )
+
+
 @router.post("/monitor/run", response_class=HTMLResponse)
 async def run_monitoring_form(
     request: Request,
@@ -168,7 +393,7 @@ async def run_monitoring_form(
     
     try:
         orchestrator = MonitoringOrchestrator()
-        results = orchestrator.run_cycle(db, url_id)
+        results = orchestrator.run_cycle(db, url_id, max_workers=None)  # Uses config default
         
         # Redirect back to dashboard with timestamp to force refresh
         timestamp = int(datetime.utcnow().timestamp())
@@ -185,9 +410,32 @@ async def run_monitoring_form(
 # ============================================================================
 
 @router.get("/api/urls", response_model=list[MonitoredURLResponse])
-async def list_urls(db: Session = Depends(get_db)):
-    """List all monitored URLs."""
-    urls = db.query(MonitoredURL).order_by(MonitoredURL.name).all()
+async def list_urls(
+    state: Optional[str] = None,
+    domain: Optional[str] = None,
+    enabled_only: bool = True,
+    db: Session = Depends(get_db)
+):
+    """
+    List all monitored URLs with optional filtering.
+    
+    Args:
+        state: Filter by state (e.g., "California", "Alaska")
+        domain: Filter by domain category (e.g., "courts.ca.gov")
+        enabled_only: Only return enabled URLs (default: True)
+    """
+    query = db.query(MonitoredURL)
+    
+    if enabled_only:
+        query = query.filter(MonitoredURL.enabled == True)
+    
+    if state:
+        query = query.filter(MonitoredURL.state == state)
+    
+    if domain:
+        query = query.filter(MonitoredURL.domain_category == domain)
+    
+    urls = query.order_by(MonitoredURL.name).all()
     
     result = []
     for url in urls:
@@ -210,6 +458,40 @@ async def list_urls(db: Session = Depends(get_db)):
         ))
     
     return result
+
+
+@router.get("/api/url-filters")
+async def get_url_filters(db: Session = Depends(get_db)):
+    """
+    Get available filters for URLs (states and domain categories).
+    
+    Returns:
+        Dictionary with states and domains lists, each with count
+    """
+    from sqlalchemy import func
+    
+    # Get states with counts
+    state_counts = db.query(
+        MonitoredURL.state,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.enabled == True,
+        MonitoredURL.state.isnot(None)
+    ).group_by(MonitoredURL.state).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    # Get domains with counts
+    domain_counts = db.query(
+        MonitoredURL.domain_category,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.enabled == True,
+        MonitoredURL.domain_category.isnot(None)
+    ).group_by(MonitoredURL.domain_category).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    return {
+        "states": [{"name": s, "count": c} for s, c in state_counts if s],
+        "domains": [{"name": d, "count": c} for d, c in domain_counts if d]
+    }
 
 
 @router.post("/api/urls", response_model=MonitoredURLResponse)
@@ -308,10 +590,9 @@ async def get_version_pdf(
     db: Session = Depends(get_db)
 ):
     """Download a PDF version."""
-    if normalized:
-        pdf_path = version_manager.get_normalized_pdf_path(db, version_id)
-    else:
-        pdf_path = version_manager.get_original_pdf_path(db, version_id)
+    # Both normalized and original now return the same file (original PDF)
+    # normalized parameter kept for backward compatibility
+    pdf_path = version_manager.get_original_pdf_path(db, version_id)
     
     if not pdf_path or not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
@@ -319,7 +600,7 @@ async def get_version_pdf(
     return FileResponse(
         pdf_path,
         media_type="application/pdf",
-        filename=f"version_{version_id}_{'normalized' if normalized else 'original'}.pdf"
+        filename=f"version_{version_id}_original.pdf"
     )
 
 
@@ -356,7 +637,7 @@ async def get_version_preview(
         )
     
     # If no preview exists, generate it on the fly
-    pdf_path = version_manager.get_normalized_pdf_path(db, version_id)
+    pdf_path = version_manager.get_original_pdf_path(db, version_id)
     if not pdf_path or not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
     
@@ -384,20 +665,30 @@ async def get_version_preview(
 async def get_diff_preview(
     url_id: int,
     version_id: int,
+    page: int = 0,
     db: Session = Depends(get_db)
 ):
     """
     Get the visual diff preview image for a version.
     Shows changes from the previous version with yellow highlighting.
+    
+    Args:
+        url_id: Monitored URL ID
+        version_id: Version ID
+        page: Page number (0-indexed). Defaults to 0 (first page).
     """
-    # First try to get existing diff image
-    diff_path = file_store.get_diff_image(url_id, version_id)
+    # Validate page number
+    if page < 0:
+        raise HTTPException(status_code=400, detail="Page number must be >= 0")
+    
+    # First try to get existing diff image for this page
+    diff_path = file_store.get_diff_image(url_id, version_id, page)
     
     if diff_path and diff_path.exists():
         return FileResponse(
             diff_path,
             media_type="image/png",
-            filename=f"diff_{version_id}.png"
+            filename=f"diff_{version_id}_page_{page}.png"
         )
     
     # If no diff exists, try to generate it
@@ -409,6 +700,13 @@ async def get_diff_preview(
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
     
+    # Validate page number against PDF page count
+    if version.page_count and page >= version.page_count:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Page number {page} is out of range. PDF has {version.page_count} pages (0-{version.page_count - 1})"
+        )
+    
     # Find previous version
     prev_version = db.query(PDFVersion).filter(
         PDFVersion.monitored_url_id == url_id,
@@ -418,9 +716,9 @@ async def get_diff_preview(
     if not prev_version:
         raise HTTPException(status_code=404, detail="No previous version to compare against")
     
-    # Get PDF paths
-    curr_pdf = version_manager.get_normalized_pdf_path(db, version_id)
-    prev_pdf = version_manager.get_normalized_pdf_path(db, prev_version.id)
+    # Get PDF paths (use original PDFs)
+    curr_pdf = version_manager.get_original_pdf_path(db, version_id)
+    prev_pdf = version_manager.get_original_pdf_path(db, prev_version.id)
     
     if not curr_pdf or not prev_pdf:
         raise HTTPException(status_code=404, detail="PDF files not found")
@@ -429,24 +727,60 @@ async def get_diff_preview(
         from services.visual_diff import VisualDiff
         differ = VisualDiff()
         
-        diff_output = file_store.get_diff_image_path(url_id, version_id)
+        diff_output = file_store.get_diff_image_path(url_id, version_id, page)
         result = differ.generate_diff(
             old_pdf_path=prev_pdf,
             new_pdf_path=curr_pdf,
-            output_path=diff_output
+            output_path=diff_output,
+            page_num=page
         )
         
         if result.success and result.diff_image_path.exists():
             return FileResponse(
                 result.diff_image_path,
                 media_type="image/png",
-                filename=f"diff_{version_id}.png"
+                filename=f"diff_{version_id}_page_{page}.png"
             )
         else:
             raise HTTPException(status_code=500, detail=f"Failed to generate diff: {result.error}")
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating diff: {str(e)}")
+
+
+@router.get("/api/urls/{url_id}/versions/{version_id}/diff-info")
+async def get_diff_info(
+    url_id: int,
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get information about the diff for a version (page count, affected pages).
+    
+    Returns:
+        JSON with page_count and affected_pages
+    """
+    version = db.query(PDFVersion).filter(
+        PDFVersion.id == version_id,
+        PDFVersion.monitored_url_id == url_id
+    ).first()
+    
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # Find the change log entry for this version
+    change = db.query(ChangeLog).filter(
+        ChangeLog.new_version_id == version_id,
+        ChangeLog.monitored_url_id == url_id
+    ).order_by(ChangeLog.detected_at.desc()).first()
+    
+    affected_pages = change.affected_pages if change and change.affected_pages else []
+    
+    return {
+        "page_count": version.page_count or 0,
+        "affected_pages": affected_pages,
+        "version_id": version_id
+    }
 
 
 @router.post("/api/urls/{url_id}/versions/{version_id}/extract-title")
@@ -466,8 +800,8 @@ async def extract_title_for_version(
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
     
-    # Get PDF path
-    pdf_path = version_manager.get_normalized_pdf_path(db, version_id)
+    # Get PDF path (use original PDF)
+    pdf_path = version_manager.get_original_pdf_path(db, version_id)
     if not pdf_path or not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
     
@@ -546,12 +880,255 @@ async def unapprove_change(
     change.reviewed = False
     change.reviewed_at = None
     change.review_notes = None
+    change.review_status = "pending"
     db.commit()
     
     return {
         "success": True,
         "change_id": change_id,
         "reviewed": False
+    }
+
+
+# ============================================================================
+# Triage API Routes (REQ-013, REQ-014)
+# ============================================================================
+
+@router.post("/api/triage/review/{change_id}", response_model=ReviewResponse)
+async def review_change(
+    change_id: int,
+    review: ReviewRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a review for a single change.
+    Actions: approved, rejected, deferred
+    """
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    # Validate action
+    valid_actions = ["approved", "rejected", "deferred"]
+    if review.action not in valid_actions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action. Must be one of: {valid_actions}"
+        )
+    
+    # Update change
+    change.review_status = review.action
+    change.reviewed = True
+    change.reviewed_at = datetime.utcnow()
+    change.reviewed_by = review.reviewed_by or "system"
+    change.review_notes = review.notes
+    db.commit()
+    
+    return ReviewResponse(
+        success=True,
+        change_id=change_id,
+        review_status=change.review_status,
+        reviewed_at=change.reviewed_at,
+        message=f"Change {review.action} successfully"
+    )
+
+
+@router.post("/api/triage/bulk-review", response_model=BulkReviewResponse)
+async def bulk_review_changes(
+    request: BulkReviewRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk review multiple changes at once.
+    Used by the triage dashboard for batch approval/rejection.
+    """
+    # Validate action
+    valid_actions = ["approved", "rejected", "deferred"]
+    if request.action not in valid_actions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action. Must be one of: {valid_actions}"
+        )
+    
+    processed = 0
+    failed = 0
+    details = []
+    
+    for change_id in request.change_ids:
+        change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+        
+        if not change:
+            failed += 1
+            details.append({
+                "change_id": change_id,
+                "success": False,
+                "error": "Change not found"
+            })
+            continue
+        
+        try:
+            change.review_status = request.action
+            change.reviewed = True
+            change.reviewed_at = datetime.utcnow()
+            change.reviewed_by = request.reviewed_by or "bulk_action"
+            change.review_notes = request.notes
+            
+            processed += 1
+            details.append({
+                "change_id": change_id,
+                "success": True,
+                "status": request.action
+            })
+        except Exception as e:
+            failed += 1
+            details.append({
+                "change_id": change_id,
+                "success": False,
+                "error": str(e)
+            })
+    
+    db.commit()
+    
+    return BulkReviewResponse(
+        success=failed == 0,
+        processed=processed,
+        failed=failed,
+        details=details
+    )
+
+
+@router.post("/api/triage/override/{change_id}")
+async def override_classification(
+    change_id: int,
+    override: ClassificationOverrideRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Override AI classification for a change.
+    Used when human reviewer disagrees with AI classification.
+    """
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    # Valid classifications per PoC
+    valid_classifications = [
+        "new_form",
+        "updated_same_name",
+        "updated_name_change",
+        "false_positive",
+        "deprecated"
+    ]
+    
+    if override.classification not in valid_classifications:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid classification. Must be one of: {valid_classifications}"
+        )
+    
+    # Store override
+    change.classification_override = override.classification
+    change.override_reason = override.reason
+    change.reviewed_by = override.overridden_by or "system"
+    change.reviewed_at = datetime.utcnow()
+    db.commit()
+    
+    return {
+        "success": True,
+        "change_id": change_id,
+        "original_classification": change.match_type,
+        "new_classification": override.classification,
+        "reason": override.reason
+    }
+
+
+@router.post("/api/triage/auto-approve-eligible")
+async def auto_approve_eligible(db: Session = Depends(get_db)):
+    """
+    Auto-approve all changes that meet the auto-approve threshold.
+    Used for batch processing of high-confidence changes.
+    """
+    from config import settings
+    
+    # Find all pending changes with auto_approve recommendation
+    eligible = db.query(ChangeLog).filter(
+        ChangeLog.review_status == "pending",
+        ChangeLog.recommended_action == "auto_approve"
+    ).all()
+    
+    approved_count = 0
+    for change in eligible:
+        change.review_status = "auto_approved"
+        change.reviewed = True
+        change.reviewed_at = datetime.utcnow()
+        change.reviewed_by = "auto_approve_system"
+        change.review_notes = f"Automatically approved (confidence >= {settings.AUTO_APPROVE_THRESHOLD})"
+        approved_count += 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "auto_approved_count": approved_count,
+        "message": f"Auto-approved {approved_count} changes"
+    }
+
+
+@router.post("/api/triage/approve-all-pending")
+async def approve_all_pending(db: Session = Depends(get_db)):
+    """
+    Approve all pending changes.
+    """
+    # Find all pending changes
+    pending = db.query(ChangeLog).filter(
+        ChangeLog.review_status == "pending"
+    ).all()
+    
+    approved_count = 0
+    for change in pending:
+        change.review_status = "approved"
+        change.reviewed = True
+        change.reviewed_at = datetime.utcnow()
+        change.reviewed_by = "system_bulk_approval"
+        change.review_notes = "Bulk approved all pending changes"
+        approved_count += 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "approved_count": approved_count,
+        "message": f"Approved {approved_count} pending changes"
+    }
+
+
+@router.post("/api/triage/dismiss-false-positives")
+async def dismiss_false_positives(db: Session = Depends(get_db)):
+    """
+    Auto-dismiss all format-only changes (false positives).
+    """
+    # Find all pending format-only changes
+    false_positives = db.query(ChangeLog).filter(
+        ChangeLog.review_status == "pending",
+        ChangeLog.change_type == "format_only"
+    ).all()
+    
+    dismissed_count = 0
+    for change in false_positives:
+        change.review_status = "auto_approved"
+        change.reviewed = True
+        change.reviewed_at = datetime.utcnow()
+        change.reviewed_by = "false_positive_dismisser"
+        change.review_notes = "Format-only change auto-dismissed (no semantic content change)"
+        change.recommended_action = "false_positive"
+        dismissed_count += 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "dismissed_count": dismissed_count,
+        "message": f"Dismissed {dismissed_count} format-only changes"
     }
 
 
@@ -597,7 +1174,7 @@ async def run_monitoring(
     from cli import MonitoringOrchestrator
     
     orchestrator = MonitoringOrchestrator()
-    results = orchestrator.run_cycle(db, request.url_id)
+    results = orchestrator.run_cycle(db, request.url_id, max_workers=None)  # Uses config default
     
     return MonitoringRunResponse(**results)
 
@@ -625,4 +1202,76 @@ async def get_aws_calls():
     """Get AWS API call counts."""
     from services.api_counter import api_counter
     return api_counter.get_stats()
+
+
+# ============================================================================
+# Metrics API Routes (PoC Section 5)
+# ============================================================================
+
+@router.get("/api/metrics")
+async def get_metrics(
+    period: str = "monthly",
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get metrics for reporting.
+    
+    Args:
+        period: "monthly", "yearly", or "all"
+        year: Specific year (defaults to current)
+        month: Specific month (defaults to current)
+    """
+    now = datetime.utcnow()
+    year = year or now.year
+    month = month or now.month
+    
+    if period == "monthly":
+        stats = metrics_tracker.get_monthly_stats(db, year, month)
+        return stats.to_dict()
+    
+    elif period == "dashboard":
+        metrics = metrics_tracker.get_dashboard_metrics(db)
+        accuracy = metrics_tracker.get_ai_accuracy(db, days=30)
+        return {
+            "metrics": metrics.to_dict(),
+            "accuracy": accuracy.to_dict()
+        }
+    
+    else:
+        # Return dashboard metrics by default
+        metrics = metrics_tracker.get_dashboard_metrics(db)
+        return metrics.to_dict()
+
+
+@router.get("/api/metrics/accuracy")
+async def get_accuracy_metrics(
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get AI prediction accuracy metrics."""
+    accuracy = metrics_tracker.get_ai_accuracy(db, days=days)
+    return accuracy.to_dict()
+
+
+@router.get("/api/metrics/jurisdiction")
+async def get_jurisdiction_metrics(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get per-jurisdiction breakdown of metrics.
+    Replaces manual Forms Monitoring Spreadsheet.
+    """
+    now = datetime.utcnow()
+    year = year or now.year
+    month = month or now.month
+    
+    breakdown = metrics_tracker.get_jurisdiction_breakdown(db, year, month)
+    return {
+        "period": f"{year}-{month:02d}",
+        "jurisdictions": breakdown
+    }
 

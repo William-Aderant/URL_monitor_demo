@@ -311,33 +311,39 @@ class FileStore:
         """
         return self.get_version_dir(url_id, version_id) / "preview.png"
     
-    def get_diff_image_path(self, url_id: int, version_id: int) -> Path:
+    def get_diff_image_path(self, url_id: int, version_id: int, page_num: int = 0) -> Path:
         """
         Get the expected path for diff image (may not exist yet).
         
         Args:
             url_id: Monitored URL ID
             version_id: Version ID
+            page_num: Page number (0-indexed). Defaults to 0 for backward compatibility.
             
         Returns:
             Path where diff image should be stored
         """
         version_dir = self.get_version_dir(url_id, version_id)
         version_dir.mkdir(parents=True, exist_ok=True)
-        return version_dir / "diff_preview.png"
+        if page_num == 0:
+            # Backward compatibility: page 0 uses the old filename
+            return version_dir / "diff_preview.png"
+        else:
+            return version_dir / f"diff_preview_page_{page_num}.png"
     
-    def get_diff_image(self, url_id: int, version_id: int) -> Optional[Path]:
+    def get_diff_image(self, url_id: int, version_id: int, page_num: int = 0) -> Optional[Path]:
         """
         Get path to diff image if it exists.
         
         Args:
             url_id: Monitored URL ID
             version_id: Version ID
+            page_num: Page number (0-indexed). Defaults to 0 for backward compatibility.
             
         Returns:
             Path to file or None if not found
         """
-        path = self.get_version_dir(url_id, version_id) / "diff_preview.png"
+        path = self.get_diff_image_path(url_id, version_id, page_num)
         return path if path.exists() else None
     
     def list_versions(self, url_id: int) -> list[int]:

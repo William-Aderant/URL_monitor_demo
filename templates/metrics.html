@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Metrics Dashboard - PDF Monitor{% endblock %}
+
+{% block content %}
+<style>
+    .metrics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .metrics-header h1 {
+        margin-bottom: 0;
+    }
+    
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+    
+    .kpi-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .kpi-card.success {
+        border-left: 4px solid var(--success);
+    }
+    
+    .kpi-card.warning {
+        border-left: 4px solid var(--warning);
+    }
+    
+    .kpi-card.danger {
+        border-left: 4px solid var(--error);
+    }
+    
+    .kpi-card.info {
+        border-left: 4px solid var(--accent);
+    }
+    
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 8px;
+    }
+    
+    .kpi-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+    
+    .kpi-target {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+    
+    .kpi-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--bg-tertiary);
+    }
+    
+    .kpi-progress-fill {
+        height: 100%;
+        transition: width 0.5s ease;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .accuracy-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+    
+    .accuracy-card {
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+    
+    .accuracy-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--success);
+    }
+    
+    .accuracy-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+    
+    .trend-chart {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .chart-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        height: 150px;
+        padding-top: 20px;
+    }
+    
+    .chart-bar-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .chart-bar {
+        width: 100%;
+        max-width: 60px;
+        background: linear-gradient(to top, var(--accent), rgba(29, 155, 240, 0.5));
+        border-radius: 4px 4px 0 0;
+        transition: height 0.5s ease;
+    }
+    
+    .chart-bar-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        text-align: center;
+    }
+    
+    .chart-bar-value {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .queue-status {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .queue-item {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .queue-count {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+    
+    .queue-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+    
+    .queue-action {
+        margin-top: 12px;
+    }
+    
+    .period-selector {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .period-btn {
+        padding: 6px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+    
+    .period-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+    }
+</style>
+
+<div class="metrics-header">
+    <h1>📊 Metrics Dashboard</h1>
+    <div class="period-selector">
+        <button class="period-btn active">Last 30 Days</button>
+        <button class="period-btn">This Month</button>
+        <button class="period-btn">This Year</button>
+    </div>
+</div>
+
+<!-- Key Performance Indicators -->
+<h2 class="section-title">Key Performance Indicators (PoC Targets)</h2>
+<div class="kpi-grid">
+    <div class="kpi-card {% if metrics.current_automation_rate >= metrics.target_automation_rate %}success{% elif metrics.current_automation_rate >= 0.7 %}warning{% else %}danger{% endif %}">
+        <div class="kpi-value" style="color: {% if metrics.current_automation_rate >= metrics.target_automation_rate %}var(--success){% elif metrics.current_automation_rate >= 0.7 %}var(--warning){% else %}var(--error){% endif %};">
+            {{ "%.0f"|format(metrics.current_automation_rate * 100) }}%
+        </div>
+        <div class="kpi-label">AI Automation Rate</div>
+        <div class="kpi-target">Target: ≥{{ "%.0f"|format(metrics.target_automation_rate * 100) }}% (Full), ≥70% (Pilot)</div>
+        <div class="kpi-progress">
+            {% set progress_width = (metrics.current_automation_rate / metrics.target_automation_rate * 100) if metrics.target_automation_rate > 0 else 0 %}
+            {% set progress_width = progress_width if progress_width <= 100 else 100 %}
+            <div class="kpi-progress-fill" style="width: {{ progress_width }}%; background: {% if metrics.current_automation_rate >= metrics.target_automation_rate %}var(--success){% elif metrics.current_automation_rate >= 0.7 %}var(--warning){% else %}var(--error){% endif %};"></div>
+        </div>
+    </div>
+    
+    <div class="kpi-card {% if metrics.current_review_rate <= metrics.target_review_rate %}success{% elif metrics.current_review_rate <= 0.2 %}warning{% else %}danger{% endif %}">
+        <div class="kpi-value" style="color: {% if metrics.current_review_rate <= metrics.target_review_rate %}var(--success){% elif metrics.current_review_rate <= 0.2 %}var(--warning){% else %}var(--error){% endif %};">
+            {{ "%.0f"|format(metrics.current_review_rate * 100) }}%
+        </div>
+        <div class="kpi-label">Human Review Rate</div>
+        <div class="kpi-target">Target: ≤{{ "%.0f"|format(metrics.target_review_rate * 100) }}% (Full), 10-20% (Pilot)</div>
+        <div class="kpi-progress">
+            {% set review_progress_width = ((1 - metrics.current_review_rate) / (1 - metrics.target_review_rate) * 100) if (1 - metrics.target_review_rate) > 0 else 0 %}
+            {% set review_progress_width = review_progress_width if review_progress_width <= 100 else 100 %}
+            <div class="kpi-progress-fill" style="width: {{ review_progress_width }}%; background: {% if metrics.current_review_rate <= metrics.target_review_rate %}var(--success){% elif metrics.current_review_rate <= 0.2 %}var(--warning){% else %}var(--error){% endif %};"></div>
+        </div>
+    </div>
+    
+    <div class="kpi-card info">
+        <div class="kpi-value" style="color: var(--accent);">{{ metrics.total_changes }}</div>
+        <div class="kpi-label">Total Changes Detected</div>
+        <div class="kpi-target">Across {{ metrics.enabled_urls }} monitored URLs</div>
+    </div>
+    
+    <div class="kpi-card info">
+        <div class="kpi-value" style="color: var(--accent);">{{ metrics.total_versions }}</div>
+        <div class="kpi-label">PDF Versions Stored</div>
+        <div class="kpi-target">Historical archive</div>
+    </div>
+</div>
+
+<!-- Queue Status -->
+<h2 class="section-title">Review Queue Status</h2>
+<div class="queue-status">
+    <div class="queue-item">
+        <div class="queue-count" style="color: var(--warning);">{{ metrics.pending_review }}</div>
+        <div class="queue-label">Pending Review</div>
+        <div class="queue-action">
+            <a href="/triage?status=pending" class="btn btn-secondary btn-sm">View Queue</a>
+        </div>
+    </div>
+    
+    <div class="queue-item">
+        <div class="queue-count" style="color: var(--success);">{{ metrics.auto_approvable }}</div>
+        <div class="queue-label">Auto-Approvable</div>
+        <div class="queue-action">
+            <form method="POST" action="/api/triage/auto-approve-eligible" style="display: inline;">
+                <button type="submit" class="btn btn-primary btn-sm">Auto-Approve All</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="queue-item">
+        <div class="queue-count" style="color: var(--error);">{{ metrics.requires_manual }}</div>
+        <div class="queue-label">Requires Manual Review</div>
+        <div class="queue-action">
+            <a href="/triage?action=manual_required" class="btn btn-secondary btn-sm">Review Now</a>
+        </div>
+    </div>
+</div>
+
+<!-- AI Accuracy -->
+<h2 class="section-title">AI Prediction Accuracy (Last 30 Days)</h2>
+<div class="accuracy-grid">
+    <div class="accuracy-card">
+        <div class="accuracy-value">{{ "%.0f"|format(accuracy.overall_accuracy * 100) }}%</div>
+        <div class="accuracy-label">Overall Accuracy</div>
+    </div>
+    <div class="accuracy-card">
+        <div class="accuracy-value" style="color: var(--success);">{{ "%.0f"|format(accuracy.auto_approve_accuracy * 100) }}%</div>
+        <div class="accuracy-label">Auto-Approve Accuracy</div>
+    </div>
+    <div class="accuracy-card">
+        <div class="accuracy-value" style="color: var(--warning);">{{ "%.0f"|format(accuracy.review_suggested_accuracy * 100) }}%</div>
+        <div class="accuracy-label">Review-Suggested Accuracy</div>
+    </div>
+    <div class="accuracy-card">
+        <div class="accuracy-value" style="color: var(--error);">{{ "%.0f"|format(accuracy.override_rate * 100) }}%</div>
+        <div class="accuracy-label">Override Rate</div>
+    </div>
+</div>
+
+<!-- Monthly Trend -->
+<h2 class="section-title">Monthly Trend (Updates Detected)</h2>
+<div class="trend-chart">
+    <div class="chart-bars">
+        {% if metrics.monthly_trend and metrics.monthly_trend|length > 0 %}
+            {% set max_updates = 1 %}
+            {% for month in metrics.monthly_trend %}
+                {% if month.updates_detected > max_updates %}
+                    {% set max_updates = month.updates_detected %}
+                {% endif %}
+            {% endfor %}
+            {% for month in metrics.monthly_trend %}
+            <div class="chart-bar-container">
+                <div class="chart-bar-value">{{ month.updates_detected }}</div>
+                {% set height = (month.updates_detected / max_updates * 100) if max_updates > 0 else 0 %}
+                {% set height = height if height >= 5 else 5 %}
+                <div class="chart-bar" style="height: {{ height }}%;"></div>
+                <div class="chart-bar-label">{{ month.month }}/{{ month.year % 100 }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                No monthly data available yet
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detailed Stats Table -->
+<h2 class="section-title">Monthly Breakdown</h2>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Period</th>
+                <th>Forms Monitored</th>
+                <th>Updates</th>
+                <th>New Forms</th>
+                <th>Auto-Approved</th>
+                <th>Manual Review</th>
+                <th>Automation Rate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for month in metrics.monthly_trend|reverse %}
+            <tr>
+                <td><strong>{{ month.year }}-{{ "%02d"|format(month.month) }}</strong></td>
+                <td>{{ month.forms_monitored }}</td>
+                <td>{{ month.updates_detected }}</td>
+                <td>{{ month.new_forms_added }}</td>
+                <td style="color: var(--success);">{{ month.auto_approved }}</td>
+                <td style="color: var(--warning);">{{ month.manual_reviewed }}</td>
+                <td>
+                    <span class="badge {% if month.automation_rate >= 0.95 %}badge-success{% elif month.automation_rate >= 0.7 %}badge-warning{% else %}badge-error{% endif %}">
+                        {{ "%.0f"|format(month.automation_rate * 100) }}%
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

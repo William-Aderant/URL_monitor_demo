@@ -19,6 +19,7 @@ Usage:
 import argparse
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -42,7 +43,6 @@ from db.models import MonitoredURL, PDFVersion, ChangeLog
 from db.migrations import run_migrations, seed_sample_urls
 from fetcher.aws_web_scraper import AWSWebScraper
 from fetcher.pdf_downloader import PDFDownloader
-from pdf_processing.normalizer import PDFNormalizer
 from pdf_processing.text_extractor import TextExtractor
 from pdf_processing.ocr_fallback import OCRFallback
 from diffing.hasher import Hasher
@@ -52,6 +52,9 @@ from services.title_extractor import TitleExtractor
 from services.link_crawler import LinkCrawler
 from services.form_matcher import FormMatcher, MatchType
 from services.visual_diff import VisualDiff
+from services.action_recommender import action_recommender
+from fetcher.header_checker import HeaderChecker
+from diffing.quick_hasher import QuickHasher
 
 
 class MonitoringOrchestrator:
@@ -60,10 +63,10 @@ class MonitoringOrchestrator:
     
     Pipeline:
     1. Fetch PDF from URL
-    2. Normalize PDF
-    3. Extract text
-    4. Compute hashes
-    5. Compare with previous version
+    2. Extract text (from original PDF)
+    3. Compute hashes (from original PDF)
+    4. Compare with previous version (with early termination)
+    5. If change detected: Run OCR (if needed), extract title, generate visual diff
     6. Store new version and record changes
     """
     
@@ -71,7 +74,6 @@ class MonitoringOrchestrator:
         """Initialize orchestrator with all required components."""
         self.aws_scraper = None  # Lazy init
         self.downloader = PDFDownloader()
-        self.normalizer = PDFNormalizer()
         self.text_extractor = TextExtractor()
         self.ocr_fallback = OCRFallback()
         self.hasher = Hasher()
@@ -83,6 +85,10 @@ class MonitoringOrchestrator:
         self.link_crawler = LinkCrawler()
         self.form_matcher = FormMatcher()
         self.visual_diff = VisualDiff()
+        
+        # Fast change detection services (three-tier)
+        self.header_checker = HeaderChecker()
+        self.quick_hasher = QuickHasher()
         
         logger.info("MonitoringOrchestrator initialized")
     
@@ -110,6 +116,14 @@ class MonitoringOrchestrator:
             url=monitored_url.url
         )
         
+        # #region agent log
+        import json
+        try:
+            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"cli.py:process_url","message":"Processing URL","data":{"url_id":monitored_url.id,"url":monitored_url.url,"name":monitored_url.name},"timestamp":int(__import__('time').time()*1000)})+'\n')
+        except: pass
+        # #endregion
+        
         relocated_from_url = None  # Track if form was found at different URL
         
         try:
@@ -136,6 +150,99 @@ class MonitoringOrchestrator:
                 
                 pdf_url = scrape_result.pdf_url
             
+            # ========================================================================
+            # TIER 1: Fast HTTP Header Check (skip download if headers match)
+            # ========================================================================
+            header_result = self.header_checker.check_headers(
+                url=pdf_url,
+                previous_last_modified=monitored_url.last_modified_header,
+                previous_etag=monitored_url.etag_header,
+                previous_content_length=monitored_url.content_length_header
+            )
+            
+            if header_result.success and self.header_checker.can_skip_download(header_result):
+                # Headers match - high confidence no change, skip processing
+                logger.info(
+                    "Headers indicate no change - skipping download",
+                    url_id=monitored_url.id,
+                    url=pdf_url
+                )
+                # #region agent log
+                try:
+                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"cli.py:process_url","message":"Skipped by header check","data":{"url_id":monitored_url.id,"url":pdf_url},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                except: pass
+                # #endregion
+                print(f"\n  ✓ No change detected (HTTP headers match)")
+                
+                # Update last checked timestamp
+                monitored_url.last_checked_at = datetime.utcnow()
+                db.commit()
+                return True
+            
+            # ========================================================================
+            # TIER 2: Quick Hash Check (download first 64KB only)
+            # ========================================================================
+            quick_hash_result = None
+            if not header_result.success or header_result.likely_changed is None:
+                # Headers unavailable or inconclusive - try quick hash
+                logger.info("Headers inconclusive, checking quick hash", url=pdf_url)
+                
+                quick_hash_result = self.quick_hasher.compute_quick_hash(pdf_url)
+                
+                if quick_hash_result.success and quick_hash_result.quick_hash:
+                    # Compare with stored quick hash
+                    stored_hash = monitored_url.quick_hash
+                    current_hash = quick_hash_result.quick_hash
+                    
+                    logger.debug(
+                        "Quick hash comparison",
+                        url_id=monitored_url.id,
+                        stored_hash=stored_hash[:16] + "..." if stored_hash else None,
+                        current_hash=current_hash[:16] + "..."
+                    )
+                    
+                    if self.quick_hasher.compare_quick_hash(current_hash, stored_hash):
+                        # Quick hash matches - high confidence no change
+                        logger.info(
+                            "Quick hash matches - skipping full download",
+                            url_id=monitored_url.id,
+                            url=pdf_url
+                        )
+                        print(f"\n  ✓ No change detected (quick hash matches)")
+                        
+                        # Update header metadata from quick hash check if available
+                        if header_result.success:
+                            monitored_url.last_modified_header = header_result.last_modified
+                            monitored_url.etag_header = header_result.etag
+                            monitored_url.content_length_header = header_result.content_length
+                        
+                        # Store quick hash for next time (in case it wasn't stored before)
+                        monitored_url.quick_hash = current_hash
+                        
+                        # Update last checked timestamp
+                        monitored_url.last_checked_at = datetime.utcnow()
+                        db.commit()
+                        return True
+                    else:
+                        # Quick hash differs - proceed to full processing
+                        if stored_hash is None:
+                            logger.info(
+                                "No stored quick hash (first check) - proceeding to full download",
+                                url_id=monitored_url.id
+                            )
+                        else:
+                            logger.info(
+                                "Quick hash differs - proceeding to full download",
+                                url_id=monitored_url.id,
+                                stored=stored_hash[:16] + "...",
+                                current=current_hash[:16] + "..."
+                            )
+                        print(f"\n  🔍 Change detected (quick hash differs) - downloading full PDF...")
+            
+            # ========================================================================
+            # TIER 3: Full Download and Processing (only if Tier 1 or 2 indicate change)
+            # ========================================================================
             # Download PDF to temp file
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
@@ -143,19 +250,58 @@ class MonitoringOrchestrator:
                 
                 download_result = self.downloader.download(pdf_url, original_pdf)
                 
-                # Step 1b: If download fails, try to find relocated form
+                # Step 1b: If download fails, check if it's a new form first
                 if not download_result.success:
                     logger.warning(
-                        "Download failed, checking for relocated form",
+                        "Download failed",
                         url=pdf_url,
                         error=download_result.error
                     )
                     
                     print(f"\n  ⚠️  Download failed: {download_result.error}")
+                    
+                    # Check if this is a new form (no versions exist) BEFORE trying relocation
+                    previous_version = self.version_manager.get_latest_version(db, monitored_url.id)
+                    
+                    # If it's a new form, skip relocation search and handle removal immediately
+                    if not previous_version:
+                        # Reference module-level settings to avoid UnboundLocalError
+                        import config
+                        if config.settings.REMOVE_INACCESSIBLE_NEW_FORMS:
+                            # This is a new form with no versions - remove it immediately
+                            logger.info(
+                                "Removing inaccessible new form (temporary feature) - skipping relocation search",
+                                url_id=monitored_url.id,
+                                url=monitored_url.url,
+                                name=monitored_url.name
+                            )
+                            print(f"  🗑️  Removing inaccessible new form: {monitored_url.name}")
+                            print(f"     (Skipping relocation search - form has never been successfully downloaded)")
+                            
+                            # Disable the URL instead of deleting (safer, can be re-enabled)
+                            monitored_url.enabled = False
+                            db.commit()
+                            
+                            return False
+                        else:
+                            # Toggle is off, but still skip relocation for new forms
+                            logger.info(
+                                "New form download failed - skipping relocation search",
+                                url_id=monitored_url.id,
+                                url=pdf_url
+                            )
+                            print(f"  ❌ New form inaccessible (relocation search skipped for new forms)")
+                            return False
+                    
+                    # Only try relocation search if form has been successfully downloaded before
+                    logger.info(
+                        "Download failed, checking for relocated form",
+                        url=pdf_url,
+                        url_id=monitored_url.id
+                    )
                     print(f"  🔍 Searching for relocated form...")
                     
                     # Get previous version's form number for matching
-                    previous_version = self.version_manager.get_latest_version(db, monitored_url.id)
                     form_number = previous_version.form_number if previous_version else None
                     form_title = previous_version.formatted_title if previous_version else None
                     
@@ -213,10 +359,36 @@ class MonitoringOrchestrator:
                     
                     if not download_result.success:
                         logger.error(
-                            "Failed to download PDF",
+                            "Failed to download PDF after relocation search",
                             url=pdf_url,
                             error=download_result.error
                         )
+                        
+                        # Create a change log entry for failed relocation
+                        if previous_version:
+                            from db.models import ChangeLog
+                            relocation_failed_log = ChangeLog(
+                                monitored_url_id=monitored_url.id,
+                                previous_version_id=previous_version.id,
+                                new_version_id=previous_version.id,  # Use same version since no new version was created
+                                change_type="relocation_failed",
+                                diff_summary=f"Form became inaccessible at {pdf_url}. Relocation search {'found PDFs but no match' if (crawl_result.success and crawl_result.pdf_links) else f'failed: {crawl_result.error if crawl_result.error else "no PDFs found"}'}.",
+                                pdf_hash_changed=False,
+                                text_hash_changed=False,
+                                review_status="pending",
+                                reviewed=False
+                            )
+                            db.add(relocation_failed_log)
+                            monitored_url.last_change_at = datetime.utcnow()
+                            db.commit()
+                            
+                            logger.info(
+                                "Relocation failure logged",
+                                change_log_id=relocation_failed_log.id,
+                                url_id=monitored_url.id
+                            )
+                            print(f"  📝 Relocation failure logged (Change ID: {relocation_failed_log.id})")
+                        
                         return False
                 
                 logger.info(
@@ -225,67 +397,23 @@ class MonitoringOrchestrator:
                     retries=download_result.retries_used
                 )
                 
-                # Step 2: Normalize PDF
-                normalized_pdf = temp_path / "normalized.pdf"
-                norm_result = self.normalizer.normalize(original_pdf, normalized_pdf)
-                
-                if not norm_result.success:
-                    logger.error(
-                        "Failed to normalize PDF",
-                        error=norm_result.error
-                    )
-                    return False
-                
-                logger.info(
-                    "PDF normalized",
-                    original_size=norm_result.original_size,
-                    normalized_size=norm_result.normalized_size
-                )
-                
-                # Step 3: Extract text
-                extraction_result = self.text_extractor.extract(normalized_pdf)
+                # Step 2: Extract text (using original PDF directly)
+                extraction_result = self.text_extractor.extract(original_pdf)
                 
                 extracted_text = extraction_result.full_text
                 page_texts = extraction_result.page_texts
                 extraction_method = extraction_result.extraction_method
                 ocr_used = False
                 
-                # Step 3b: OCR fallback if needed
-                if extraction_result.needs_ocr:
-                    logger.info("Text extraction insufficient, attempting OCR")
-                    
-                    if self.ocr_fallback.is_available():
-                        ocr_result = self.ocr_fallback.process_pdf(
-                            normalized_pdf,
-                            url=monitored_url.url
-                        )
-                        
-                        if ocr_result.success:
-                            extracted_text = ocr_result.full_text
-                            page_texts = ocr_result.page_texts
-                            extraction_method = "textract"
-                            ocr_used = True
-                            logger.info(
-                                "OCR completed",
-                                chars=len(extracted_text),
-                                confidence=ocr_result.confidence
-                            )
-                        else:
-                            logger.warning(
-                                "OCR failed, using partial text",
-                                error=ocr_result.error
-                            )
-                    else:
-                        logger.warning("OCR not available, using partial text")
-                
-                # Step 4: Compute hashes
+                # Step 3: Compute hashes FIRST (before expensive operations)
+                # Use extracted text even if incomplete - we'll re-run OCR if change detected
                 hashes = self.hasher.compute_hashes(
-                    normalized_pdf,
+                    original_pdf,
                     extracted_text,
                     page_texts
                 )
                 
-                # Step 5: Get previous version for comparison
+                # Step 4: Get previous version for comparison
                 previous_version = self.version_manager.get_latest_version(
                     db,
                     monitored_url.id
@@ -306,13 +434,63 @@ class MonitoringOrchestrator:
                         previous_version.id
                     ) or ""
                 
-                # Step 5b: Detect changes
+                # Step 5: Detect changes (with early termination)
                 change_result = self.change_detector.compare(
                     hashes,
                     previous_hashes,
                     extracted_text,
                     previous_text
                 )
+                
+                # #region agent log
+                try:
+                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"cli.py:process_url","message":"Change detection result","data":{"url_id":monitored_url.id,"changed":change_result.changed,"change_type":change_result.change_type,"pdf_hash_changed":change_result.pdf_hash_changed,"text_hash_changed":change_result.text_hash_changed},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                except: pass
+                # #endregion
+                
+                # Step 5b: OCR fallback ONLY if change detected AND text insufficient
+                if change_result.changed and extraction_result.needs_ocr:
+                    logger.info("Change detected and text insufficient, attempting OCR")
+                    
+                    if self.ocr_fallback.is_available():
+                        ocr_result = self.ocr_fallback.process_pdf(
+                            original_pdf,
+                            url=monitored_url.url
+                        )
+                        
+                        if ocr_result.success:
+                            extracted_text = ocr_result.full_text
+                            page_texts = ocr_result.page_texts
+                            extraction_method = "textract"
+                            ocr_used = True
+                            logger.info(
+                                "OCR completed",
+                                chars=len(extracted_text),
+                                confidence=ocr_result.confidence
+                            )
+                            
+                            # Recompute hashes with OCR text
+                            hashes = self.hasher.compute_hashes(
+                                original_pdf,
+                                extracted_text,
+                                page_texts
+                            )
+                            
+                            # Re-compare with OCR text
+                            change_result = self.change_detector.compare(
+                                hashes,
+                                previous_hashes,
+                                extracted_text,
+                                previous_text
+                            )
+                        else:
+                            logger.warning(
+                                "OCR failed, using partial text",
+                                error=ocr_result.error
+                            )
+                    else:
+                        logger.warning("OCR not available, using partial text")
                 
                 # Step 5c: Enhanced form matching
                 match_result = None
@@ -331,17 +509,46 @@ class MonitoringOrchestrator:
                         similarity=f"{match_result.similarity_score:.1%}",
                         confidence=f"{match_result.confidence:.1%}"
                     )
+                    
+                    # #region agent log
+                    try:
+                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Initial form match result","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":None,"form_numbers_match":previous_version.form_number == match_result.form_number_new if match_result.form_number_new else False,"current_change_type":change_result.change_type},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                    except: pass
+                    # #endregion
                 
                 # Step 6: Store version if changed, first version, or relocated
-                # Always create a version if content changed, it's the first version, or URL relocated
-                should_create_version = change_result.changed or relocated_from_url is not None
+                # Only create a version if:
+                # 1. It's the first version (no previous version exists)
+                # 2. Content actually changed (not just format-only, unless we track those)
+                # 3. URL was relocated (even if content unchanged, we track the new location)
+                should_create_version = (
+                    not previous_version or  # First version
+                    (change_result.changed and change_result.change_type != "unchanged") or  # Real change
+                    relocated_from_url is not None  # URL relocation
+                )
+                
+                # Don't create version for format-only changes if auto-dismiss is enabled
+                if (change_result.change_type == "format_only" and 
+                    settings.AUTO_DISMISS_FORMAT_ONLY and 
+                    previous_version):
+                    should_create_version = False
+                    logger.info(
+                        "Skipping version creation for format-only change (auto-dismiss enabled)",
+                        url_id=monitored_url.id
+                    )
+                    # #region agent log
+                    try:
+                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"cli.py:process_url","message":"Format-only auto-dismissed","data":{"url_id":monitored_url.id,"auto_dismiss_enabled":settings.AUTO_DISMISS_FORMAT_ONLY},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                    except: pass
+                    # #endregion
                 
                 if should_create_version:
                     new_version = self.version_manager.create_version(
                         db=db,
                         monitored_url=monitored_url,
                         original_pdf_path=original_pdf,
-                        normalized_pdf_path=normalized_pdf,
                         extracted_text=extracted_text,
                         page_texts=page_texts,
                         hashes=hashes,
@@ -349,14 +556,14 @@ class MonitoringOrchestrator:
                         ocr_used=ocr_used
                     )
                     
-                    # Step 6b: Extract title using AWS Textract + Bedrock
-                    if self.title_extractor.is_available():
+                    # Step 6b: Extract title using AWS Textract + Bedrock (only if change detected)
+                    if change_result.changed and self.title_extractor.is_available():
                         logger.info("Extracting title with Textract + Bedrock")
                         preview_path = self.version_manager.file_store.get_preview_image_path(
                             monitored_url.id, new_version.id
                         )
                         title_result = self.title_extractor.extract_title(
-                            normalized_pdf, 
+                            original_pdf, 
                             preview_path
                         )
                         
@@ -377,7 +584,8 @@ class MonitoringOrchestrator:
                             )
                             
                             # Re-run form matching now that we have the new title
-                            if previous_version and match_result:
+                            # This is important because title matching takes priority over form number/similarity
+                            if previous_version:
                                 updated_match = self.form_matcher.match_forms(
                                     old_text=previous_text,
                                     new_text=extracted_text,
@@ -394,6 +602,31 @@ class MonitoringOrchestrator:
                                     old_title=previous_version.formatted_title,
                                     new_title=title_result.formatted_title
                                 )
+                                
+                                # #region agent log
+                                try:
+                                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Form match after title extraction","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":title_result.formatted_title,"form_numbers_match":previous_version.form_number == title_result.form_number},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                                except: pass
+                                # #endregion
+                                
+                                # Fix: Update change_type to "title_changed" if form numbers match and only title changed
+                                if (match_result.match_type.value == "similarity_match" and 
+                                    previous_version.form_number == title_result.form_number and
+                                    match_result.title_old != match_result.title_new):
+                                    # This is a title change - update change_type
+                                    change_result.change_type = "title_changed"
+                                    logger.info(
+                                        "Change type updated to title_changed",
+                                        old_title=previous_version.formatted_title,
+                                        new_title=title_result.formatted_title
+                                    )
+                                    # #region agent log
+                                    try:
+                                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Change type updated to title_changed","data":{"url_id":monitored_url.id,"old_change_type":"text_changed","new_change_type":"title_changed"},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                                    except: pass
+                                    # #endregion
                         else:
                             logger.warning(
                                 "Title extraction failed",
@@ -402,24 +635,24 @@ class MonitoringOrchestrator:
                     else:
                         logger.info("AWS credentials not configured, skipping title extraction")
                     
-                    # Step 6c: Generate visual diff if we have a previous version
+                    # Step 6c: Generate visual diff if we have a previous version (only if change detected)
                     diff_image_path = None
-                    if previous_version:
+                    if change_result.changed and previous_version:
                         logger.info("Generating visual diff")
                         
-                        # Get paths to previous version PDFs
-                        prev_normalized = self.version_manager.file_store.get_normalized_pdf(
+                        # Get paths to previous version PDFs (use original PDFs)
+                        prev_original = self.version_manager.file_store.get_original_pdf(
                             monitored_url.id, previous_version.id
                         )
                         
-                        if prev_normalized:
+                        if prev_original:
                             diff_output = self.version_manager.file_store.get_diff_image_path(
                                 monitored_url.id, new_version.id
                             )
                             
                             diff_result = self.visual_diff.generate_diff(
-                                old_pdf_path=prev_normalized,
-                                new_pdf_path=normalized_pdf,
+                                old_pdf_path=prev_original,
+                                new_pdf_path=original_pdf,
                                 output_path=diff_output
                             )
                             
@@ -488,6 +721,52 @@ class MonitoringOrchestrator:
                             # First version - classify as new form
                             change_log.match_type = "new_form"
                         
+                        # Generate AI action recommendation
+                        recommendation = action_recommender.recommend(
+                            change_type=change_result.change_type,
+                            confidence=match_result.confidence if match_result else None,
+                            similarity_score=match_result.similarity_score if match_result else None,
+                            match_type=match_result.match_type.value if match_result else None,
+                            is_first_version=(not previous_version),
+                            has_form_number_match=(match_result and match_result.match_type == MatchType.FORM_NUMBER_MATCH) if match_result else False,
+                            title_changed=(match_result and match_result.title_old != match_result.title_new) if match_result else False,
+                            relocated=(relocated_from_url is not None)
+                        )
+                        
+                        # Store recommendation
+                        change_log.recommended_action = recommendation.action.value
+                        change_log.action_confidence = recommendation.confidence
+                        change_log.action_rationale = recommendation.rationale
+                        
+                        # Auto-dismiss format-only changes if configured
+                        import config
+                        if (change_result.change_type == "format_only" and 
+                            config.settings.AUTO_DISMISS_FORMAT_ONLY and 
+                            recommendation.action.value == "false_positive"):
+                            change_log.review_status = "auto_approved"
+                            change_log.reviewed = True
+                            change_log.reviewed_at = datetime.utcnow()
+                            change_log.reviewed_by = "auto_dismiss_system"
+                            change_log.review_notes = "Format-only change auto-dismissed"
+                            logger.info(
+                                "Format-only change auto-dismissed",
+                                change_id=change_log.id
+                            )
+                        
+                        # Auto-approve high-confidence changes if configured
+                        elif (recommendation.action.value == "auto_approve" and 
+                              not recommendation.requires_human_review):
+                            change_log.review_status = "auto_approved"
+                            change_log.reviewed = True
+                            change_log.reviewed_at = datetime.utcnow()
+                            change_log.reviewed_by = "auto_approve_system"
+                            change_log.review_notes = f"Auto-approved: {recommendation.rationale}"
+                            logger.info(
+                                "High-confidence change auto-approved",
+                                change_id=change_log.id,
+                                confidence=recommendation.confidence
+                            )
+                        
                     if change_log and relocated_from_url:
                         change_log.relocated_from_url = relocated_from_url
                         logger.info(
@@ -533,7 +812,10 @@ class MonitoringOrchestrator:
                         print(f"\n  🔄 FORMAT-ONLY CHANGE DETECTED:")
                         print(f"     Type: Format-only (binary changed, text unchanged)")
                         print(f"     Note: PDF binary hash changed but extracted text is identical")
-                        print(f"     Action: No semantic changes - no action needed")
+                        if change_log and change_log.review_status == "auto_approved":
+                            print(f"     Action: ✅ Auto-dismissed (no semantic changes)")
+                        else:
+                            print(f"     Action: No semantic changes - no action needed")
                     else:
                         print(f"\n  📋 CHANGE DETECTED:")
                         print(f"     Type: {change_result.change_type}")
@@ -547,9 +829,72 @@ class MonitoringOrchestrator:
                         print(f"     Title: {new_version.formatted_title}")
                     if new_version.form_number:
                         print(f"     Form #: {new_version.form_number}")
+                    
+                    # Show AI recommendation
+                    if change_log and change_log.recommended_action:
+                        action_icons = {
+                            "auto_approve": "✅",
+                            "review_suggested": "👀",
+                            "manual_required": "⚠️",
+                            "false_positive": "🚫",
+                            "new_form": "🆕"
+                        }
+                        icon = action_icons.get(change_log.recommended_action, "❓")
+                        print(f"     AI Recommendation: {icon} {change_log.recommended_action.replace('_', ' ').title()}")
+                        print(f"     Confidence: {change_log.action_confidence:.0%}" if change_log.action_confidence else "")
+                        if change_log.review_status == "auto_approved":
+                            print(f"     Status: ✅ Auto-approved")
                 else:
                     logger.info("No changes detected")
                     print(f"\n  ✓ No changes detected")
+                
+                # Store header metadata and quick hash for future fast checks
+                # (even if no change detected, we want to update headers for next check)
+                if header_result.success:
+                    monitored_url.last_modified_header = header_result.last_modified
+                    monitored_url.etag_header = header_result.etag
+                    monitored_url.content_length_header = header_result.content_length
+                    logger.debug("Stored header metadata", url_id=monitored_url.id)
+                
+                # Store quick hash for future checks
+                # Priority: Use Tier 2 result if available (most accurate), otherwise compute from file
+                if quick_hash_result and quick_hash_result.success:
+                    # Use the quick hash from Tier 2 check (computed from URL via Range request)
+                    monitored_url.quick_hash = quick_hash_result.quick_hash
+                    logger.debug(
+                        "Stored quick hash from Tier 2 check",
+                        url_id=monitored_url.id,
+                        hash=quick_hash_result.quick_hash[:16] + "..."
+                    )
+                elif 'original_pdf' in locals() and original_pdf.exists():
+                    # Compute quick hash from original PDF if we didn't do Tier 2 check
+                    # (This ensures we have quick hash for next time)
+                    # Use same method as Tier 2: read in 8KB chunks up to 64KB
+                    try:
+                        import hashlib
+                        sha256 = hashlib.sha256()
+                        bytes_read = 0
+                        chunk_size = 8192  # Same as quick_hasher
+                        max_bytes = 65536  # Same as quick_hasher.chunk_size
+                        
+                        with open(original_pdf, 'rb') as f:
+                            while bytes_read < max_bytes:
+                                chunk = f.read(min(chunk_size, max_bytes - bytes_read))
+                                if not chunk:
+                                    break
+                                sha256.update(chunk)
+                                bytes_read += len(chunk)
+                        
+                        quick_hash = sha256.hexdigest()
+                        monitored_url.quick_hash = quick_hash
+                        logger.debug(
+                            "Computed and stored quick hash from original PDF",
+                            url_id=monitored_url.id,
+                            hash=quick_hash[:16] + "...",
+                            bytes_read=bytes_read
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to compute quick hash from original PDF", error=str(e))
                 
                 # Update last checked timestamp
                 monitored_url.last_checked_at = datetime.utcnow()
@@ -565,13 +910,14 @@ class MonitoringOrchestrator:
             )
             return False
     
-    def run_cycle(self, db, url_id: Optional[int] = None) -> dict:
+    def run_cycle(self, db, url_id: Optional[int] = None, max_workers: Optional[int] = None) -> dict:
         """
-        Run a monitoring cycle.
+        Run a monitoring cycle with optional parallel processing.
         
         Args:
-            db: Database session
+            db: Database session (used for querying, each thread gets its own session)
             url_id: Optional specific URL ID to process
+            max_workers: Number of parallel workers (default: min(10, number of URLs))
             
         Returns:
             Dictionary with results summary
@@ -589,6 +935,10 @@ class MonitoringOrchestrator:
             logger.warning("No URLs to process")
             return {"processed": 0, "success": 0, "failed": 0}
         
+        # Determine number of workers (default to config setting or number of URLs, whichever is smaller)
+        if max_workers is None:
+            max_workers = min(settings.MAX_WORKERS, len(urls))
+        
         results = {
             "processed": len(urls),
             "success": 0,
@@ -596,19 +946,89 @@ class MonitoringOrchestrator:
             "details": []
         }
         
-        for url in urls:
-            success = self.process_url(db, url)
+        # Helper function to process a single URL with its own database session
+        def process_url_with_session(url_data):
+            """Process a URL with a fresh database session for thread safety."""
+            url_id, url_name, url_url = url_data
+            thread_db = SessionLocal()
+            try:
+                # Re-fetch the URL in this thread's session
+                url = thread_db.query(MonitoredURL).filter(MonitoredURL.id == url_id).first()
+                if not url:
+                    logger.warning("URL not found in thread session", url_id=url_id)
+                    return {"url_id": url_id, "name": url_name, "success": False}
+                
+                success = self.process_url(thread_db, url)
+                thread_db.commit()
+                
+                return {"url_id": url_id, "name": url_name, "success": success}
+            except Exception as e:
+                logger.error(
+                    "Error processing URL in thread",
+                    url_id=url_id,
+                    error=str(e),
+                    exc_info=True
+                )
+                thread_db.rollback()
+                return {"url_id": url_id, "name": url_name, "success": False}
+            finally:
+                thread_db.close()
+        
+        # Process URLs in parallel if we have multiple URLs and max_workers > 1
+        if len(urls) > 1 and max_workers > 1:
+            logger.info(
+                "Processing URLs in parallel",
+                total=len(urls),
+                workers=max_workers
+            )
             
-            if success:
-                results["success"] += 1
-            else:
-                results["failed"] += 1
+            # Prepare URL data for parallel processing
+            url_data_list = [(url.id, url.name, url.url) for url in urls]
             
-            results["details"].append({
-                "url_id": url.id,
-                "name": url.name,
-                "success": success
-            })
+            # Process in parallel
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_url = {
+                    executor.submit(process_url_with_session, url_data): url_data[0]
+                    for url_data in url_data_list
+                }
+                
+                for future in as_completed(future_to_url):
+                    url_id_key = future_to_url[future]
+                    try:
+                        detail = future.result()
+                        if detail["success"]:
+                            results["success"] += 1
+                        else:
+                            results["failed"] += 1
+                        results["details"].append(detail)
+                    except Exception as e:
+                        logger.error(
+                            "Error getting result from thread",
+                            url_id=url_id_key,
+                            error=str(e)
+                        )
+                        results["failed"] += 1
+                        results["details"].append({
+                            "url_id": url_id_key,
+                            "name": "Unknown",
+                            "success": False
+                        })
+        else:
+            # Process sequentially (single URL or max_workers = 1)
+            logger.info("Processing URLs sequentially", total=len(urls))
+            for url in urls:
+                success = self.process_url(db, url)
+                
+                if success:
+                    results["success"] += 1
+                else:
+                    results["failed"] += 1
+                
+                results["details"].append({
+                    "url_id": url.id,
+                    "name": url.name,
+                    "success": success
+                })
         
         logger.info(
             "Monitoring cycle complete",
@@ -704,9 +1124,9 @@ def cmd_seed():
     logger.info("Test form URLs seeded")
 
 
-def cmd_run(url_id: Optional[int] = None):
+def cmd_run(url_id: Optional[int] = None, max_workers: Optional[int] = None):
     """Run monitoring cycle."""
-    logger.info("Running monitoring cycle")
+    logger.info("Running monitoring cycle", url_id=url_id, max_workers=max_workers)
     settings.ensure_directories()
     run_migrations()
     
@@ -719,7 +1139,7 @@ def cmd_run(url_id: Optional[int] = None):
     db = SessionLocal()
     try:
         orchestrator = MonitoringOrchestrator()
-        results = orchestrator.run_cycle(db, url_id)
+        results = orchestrator.run_cycle(db, url_id, max_workers=max_workers)
         
         print("\n=== Monitoring Results ===")
         print(f"Processed: {results['processed']}")
@@ -859,6 +1279,13 @@ Test workflow:
         help="Specific URL ID to process (for 'run' command)"
     )
     
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=None,
+        help="Maximum number of parallel workers for processing URLs (default: from config or 10)"
+    )
+    
     args = parser.parse_args()
     
     if args.command == "init":
@@ -866,7 +1293,7 @@ Test workflow:
     elif args.command == "seed":
         cmd_seed()
     elif args.command == "run":
-        cmd_run(args.url_id)
+        cmd_run(args.url_id, max_workers=args.max_workers)
     elif args.command == "reset":
         cmd_reset()
     elif args.command == "status":

@@ -20,7 +20,7 @@
         </thead>
         <tbody>
             {% for item in changes %}
-            <tr class="{% if not item.change.reviewed and item.change.change_type != 'new' %}row-changed{% endif %}{% if item.change.relocated_from_url %} row-relocated{% endif %}">
+            <tr class="{% if not item.change.reviewed and item.change.change_type != 'new' %}row-changed{% endif %}{% if item.change.relocated_from_url %} row-relocated{% endif %}{% if item.change.change_type == 'relocation_failed' %} row-error{% endif %}">
                 <td>
                     <div class="card-title">{{ item.url_name }}</div>
                     {% if item.change.relocated_from_url %}
@@ -33,13 +33,29 @@
                         </div>
                     </div>
                     {% endif %}
+                    {% if item.change.change_type == 'relocation_failed' %}
+                    <div style="margin-top: 6px; padding: 6px; background: rgba(244, 33, 46, 0.15); border-left: 3px solid var(--error); border-radius: 4px; font-size: 0.75rem;">
+                        <div style="color: var(--text-secondary); margin-bottom: 2px;">⚠️ Relocation Failed:</div>
+                        <div style="color: var(--text-primary);">
+                            Form is inaccessible. Relocation search could not find the form at a new location.
+                        </div>
+                        {% if item.change.diff_summary %}
+                        <div style="color: var(--text-secondary); margin-top: 4px; font-size: 0.7rem;">
+                            {{ item.change.diff_summary }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </td>
                 <td>
-                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'format_only' %}badge-neutral{% else %}badge-success{% endif %}">
+                    <span class="badge {% if item.change.change_type == 'new' %}badge-info{% elif item.change.change_type == 'text_changed' %}badge-warning{% elif item.change.change_type == 'format_only' %}badge-neutral{% elif item.change.change_type == 'relocation_failed' %}badge-error{% else %}badge-success{% endif %}">
                         {{ item.change.change_type|replace('_', ' ')|title }}
                     </span>
                     {% if item.change.relocated_from_url %}
                     <span class="badge badge-relocated" style="margin-left: 4px; font-size: 0.65rem;">📍 URL Changed</span>
+                    {% endif %}
+                    {% if item.change.change_type == 'relocation_failed' %}
+                    <span class="badge badge-error" style="margin-left: 4px; font-size: 0.65rem;">🔍 Not Found</span>
                     {% endif %}
                 </td>
                 <td>

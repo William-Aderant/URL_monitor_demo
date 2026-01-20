@@ -189,9 +189,16 @@ class TitleExtractor:
             Dictionary with 'title', 'form_number', 'confidence', and 'reasoning'
         """
         prompt = f"""You are a document analysis assistant. Given the following text extracted from a court form, identify:
-1. The main document title (the primary heading, not subtitles or section headers)
-2. The form number/code (usually in a format like "ADR-103", "CIV-775", or similar alphanumeric codes)
+1. The complete main document title, including any parenthetical information that appears with it (e.g., "(Limited Civil Case)", "(Misdemeanor)", "(Family Law)", etc.)
+2. The form number/code (usually in a format like "ADR-103", "CIV-775", "APP-108", or similar alphanumeric codes)
 3. Your confidence level in correctly identifying these elements
+
+IMPORTANT: The title should include ALL descriptive text that is part of the official form title, including parenthetical qualifiers WITH THE PARENTHESES PRESERVED. For example:
+- "Notice of Waiver of Oral Argument (Limited Civil Case)" NOT "Notice of Waiver of Oral Argument" or "Notice of Waiver of Oral Argument Limited Civil Case"
+- "Petition for Dissolution of Marriage (Family Law)" NOT "Petition for Dissolution of Marriage" or "Petition for Dissolution of Marriage Family Law"
+- "Application for Order (Criminal)" NOT "Application for Order" or "Application for Order Criminal"
+
+Look for parenthetical text that appears near the main title (often on the same line or immediately following it) and include it WITH PARENTHESES as part of the complete title. The parentheses are part of the official title format and must be preserved.
 
 Extracted text:
 ---
@@ -199,7 +206,7 @@ Extracted text:
 ---
 
 Return your response as a JSON object with exactly these keys:
-- "title": The main title of the document
+- "title": The complete main title of the document, including any parenthetical qualifiers WITH PARENTHESES PRESERVED (e.g., "Notice of Waiver of Oral Argument (Limited Civil Case)")
 - "form_number": The form number/code (use empty string if not found)
 - "confidence": Your confidence level from 0.0 to 1.0 that you correctly identified the title and form number. Consider:
   - 0.9-1.0: Very clear title and form number, unambiguous
@@ -331,7 +338,8 @@ Return ONLY the JSON object, no other text."""
     
     def format_title(self, title: str) -> str:
         """
-        Format the title: capitalize every word and remove commas/symbols.
+        Format the title: capitalize every word and remove unwanted punctuation,
+        but preserve parentheses which are part of the official title.
         
         Args:
             title: The original title string
@@ -339,7 +347,9 @@ Return ONLY the JSON object, no other text."""
         Returns:
             Formatted title string
         """
-        cleaned = re.sub(r"[^\w\s]", "", title)
+        # Preserve parentheses but remove other unwanted punctuation
+        # Keep word characters, whitespace, and parentheses
+        cleaned = re.sub(r"[^\w\s()]", "", title)
         cleaned = " ".join(cleaned.split())
         formatted = cleaned.title()
         return formatted

@@ -212,5 +212,66 @@ class PDFDownloader:
                     return None, str(e)
         
         return None, "Max retries exceeded"
+    
+    def download_partial(
+        self,
+        url: str,
+        max_bytes: int = 65536
+    ) -> tuple[Optional[bytes], Optional[str], Optional[int]]:
+        """
+        Download first N bytes of a PDF using Range header.
+        
+        Used for quick hash computation without downloading full file.
+        
+        Args:
+            url: URL to download from
+            max_bytes: Maximum bytes to download (default 64KB)
+            
+        Returns:
+            Tuple of (content bytes, error message, total content length)
+        """
+        logger.debug("Downloading partial PDF", url=url, max_bytes=max_bytes)
+        
+        try:
+            with httpx.Client(
+                timeout=self.timeout,
+                follow_redirects=True,
+                headers=self.headers
+            ) as client:
+                # Use Range header to download only first chunk
+                range_header = f"bytes=0-{max_bytes - 1}"
+                headers = {**self.headers, "Range": range_header}
+                
+                response = client.get(url, headers=headers)
+                response.raise_for_status()
+                
+                content_length = response.headers.get("Content-Length")
+                total_size = int(content_length) if content_length else None
+                
+                content = response.content[:max_bytes]  # Ensure we don't exceed max_bytes
+                
+                logger.debug(
+                    "Partial download complete",
+                    url=url,
+                    bytes_downloaded=len(content),
+                    total_size=total_size
+                )
+                
+                return content, None, total_size
+                
+        except httpx.HTTPStatusError as e:
+            # Some servers don't support Range requests
+            if e.response.status_code == 416:  # Range Not Satisfiable
+                logger.debug("Range not supported, downloading full file")
+                # Fall back to full download but limit to max_bytes
+                content, error = self.download_to_bytes(url)
+                if content:
+                    return content[:max_bytes], None, len(content)
+                return None, error, None
+            else:
+                return None, f"HTTP {e.response.status_code}", None
+        except Exception as e:
+            logger.warning("Partial download failed", url=url, error=str(e))
+            return None, str(e), None
 
 

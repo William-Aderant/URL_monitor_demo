@@ -36,6 +36,41 @@ class Settings:
     APP_NAME: str = "PDF Monitor"
     APP_VERSION: str = "1.0.0"
     
+    # ==========================================================================
+    # AI/ML Thresholds (REQ-003, REQ-004)
+    # Configurable confidence thresholds for automated decision making
+    # ==========================================================================
+    
+    # Action Recommendation Thresholds
+    # Changes with confidence >= this threshold are auto-approved
+    AUTO_APPROVE_THRESHOLD: float = float(os.getenv("AUTO_APPROVE_THRESHOLD", "0.95"))
+    # Changes with confidence >= this threshold (but < auto-approve) are suggested for review
+    REVIEW_THRESHOLD: float = float(os.getenv("REVIEW_THRESHOLD", "0.80"))
+    # Changes with confidence < REVIEW_THRESHOLD require manual review
+    
+    # Form Classification Thresholds (for FormMatcher)
+    # Similarity >= this = same form updated
+    HIGH_SIMILARITY_THRESHOLD: float = float(os.getenv("HIGH_SIMILARITY_THRESHOLD", "0.80"))
+    # Similarity < this = new form
+    LOW_SIMILARITY_THRESHOLD: float = float(os.getenv("LOW_SIMILARITY_THRESHOLD", "0.50"))
+    # Similarity between LOW and HIGH = uncertain, needs review
+    
+    # Format-only Change Handling
+    # If True, format-only changes (binary diff but no text diff) are tracked but auto-dismissed
+    TRACK_FORMAT_ONLY_CHANGES: bool = os.getenv("TRACK_FORMAT_ONLY_CHANGES", "True").lower() == "true"
+    # If True, format-only changes are automatically marked as reviewed/dismissed
+    AUTO_DISMISS_FORMAT_ONLY: bool = os.getenv("AUTO_DISMISS_FORMAT_ONLY", "True").lower() == "true"
+    
+    # Temporary Feature: Remove Inaccessible New Forms
+    # If True, automatically disable/remove new forms (no versions) that are inaccessible
+    # This is a temporary feature to clean up forms that can't be downloaded
+    REMOVE_INACCESSIBLE_NEW_FORMS: bool = os.getenv("REMOVE_INACCESSIBLE_NEW_FORMS", "False").lower() == "true"
+    
+    # Parallel Processing
+    # Maximum number of parallel workers for processing URLs (default: 10)
+    # Set to 1 to disable parallel processing
+    MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "100"))
+    
     @classmethod
     def ensure_directories(cls) -> None:
         """Create required directories if they don't exist."""

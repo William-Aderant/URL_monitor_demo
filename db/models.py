@@ -36,6 +36,18 @@ class MonitoredURL(Base):
     # Parent page for crawling relocated forms
     parent_page_url = Column(String(2048), nullable=True)
     
+    # Fast change detection metadata (Tier 1: HTTP headers)
+    last_modified_header = Column(DateTime, nullable=True)  # Last-Modified header from server
+    etag_header = Column(String(255), nullable=True)  # ETag header from server
+    content_length_header = Column(Integer, nullable=True)  # Content-Length header from server
+    
+    # Fast change detection metadata (Tier 2: Quick hash)
+    quick_hash = Column(String(64), nullable=True)  # SHA-256 hash of first 64KB of PDF
+    
+    # State and domain organization
+    state = Column(String(50), nullable=True)  # e.g., "Alaska", "California"
+    domain_category = Column(String(100), nullable=True)  # e.g., "courts.ca.gov", "insurance.ca.gov"
+    
     # Relationships
     versions = relationship("PDFVersion", back_populates="monitored_url", cascade="all, delete-orphan")
     changes = relationship("ChangeLog", back_populates="monitored_url", cascade="all, delete-orphan")
@@ -132,11 +144,21 @@ class ChangeLog(Base):
     relocated_from_url = Column(String(2048), nullable=True)  # Original URL if form moved
     diff_image_path = Column(String(512), nullable=True)  # Path to visual diff image
     
-    # Review/approval tracking
+    # AI Action Recommendation (REQ-001, REQ-003)
+    recommended_action = Column(String(50), nullable=True)  # auto_approve, review_suggested, manual_required, false_positive, new_form
+    action_confidence = Column(Float, nullable=True)  # Confidence in the recommendation (0.0 to 1.0)
+    action_rationale = Column(Text, nullable=True)  # Human-readable explanation for the recommendation
+    
+    # Review/approval workflow (REQ-013, REQ-014)
+    review_status = Column(String(50), default="pending")  # pending, approved, rejected, deferred, auto_approved
     reviewed = Column(Boolean, default=False)  # Has this change been reviewed/approved?
     reviewed_at = Column(DateTime, nullable=True)  # When was it reviewed?
-    reviewed_by = Column(String(255), nullable=True)  # Who reviewed it (for future use)
+    reviewed_by = Column(String(255), nullable=True)  # Who reviewed it (username or system)
     review_notes = Column(Text, nullable=True)  # Optional notes from reviewer
+    
+    # Classification override (REQ-004 - supports override)
+    classification_override = Column(String(50), nullable=True)  # Human override of AI classification
+    override_reason = Column(Text, nullable=True)  # Reason for override
     
     # Timestamps
     detected_at = Column(DateTime, default=datetime.utcnow)

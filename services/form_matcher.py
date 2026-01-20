@@ -109,14 +109,19 @@ class FormMatcher:
     2. Fall back to text similarity analysis
     """
     
-    # Thresholds for classification
-    HIGH_SIMILARITY_THRESHOLD = 0.80  # Above this = same form updated
-    LOW_SIMILARITY_THRESHOLD = 0.50   # Below this = new form
-    # Between these = uncertain
-    
     def __init__(self):
-        """Initialize the form matcher."""
-        logger.info("FormMatcher initialized")
+        """Initialize the form matcher with configurable thresholds."""
+        from config import settings
+        
+        # Use configurable thresholds from settings
+        self.high_similarity_threshold = settings.HIGH_SIMILARITY_THRESHOLD
+        self.low_similarity_threshold = settings.LOW_SIMILARITY_THRESHOLD
+        
+        logger.info(
+            "FormMatcher initialized",
+            high_threshold=self.high_similarity_threshold,
+            low_threshold=self.low_similarity_threshold
+        )
     
     def extract_form_number(self, text: str) -> Optional[str]:
         """
@@ -335,7 +340,41 @@ class FormMatcher:
             diff.removed_lines
         )
         
-        # Strategy 1: Form number matching (highest confidence)
+        # Strategy 0: Title matching (highest priority - if titles match, it's the same form)
+        # This handles cases where form numbers aren't extracted or differ, but titles are identical
+        if old_title and new_title:
+            title_changed = self._titles_differ(old_title, new_title)
+            if not title_changed:
+                # Titles are the same - this is definitely the same form, even if content changed
+                # Check if form numbers also match for higher confidence
+                if old_form_number and new_form_number and old_form_number.upper() == new_form_number.upper():
+                    # Same title AND same form number - highest confidence
+                    return MatchResult(
+                        match_type=MatchType.FORM_NUMBER_MATCH,
+                        similarity_score=diff.similarity_score,
+                        form_number_old=old_form_number,
+                        form_number_new=new_form_number,
+                        title_old=old_title,
+                        title_new=new_title,
+                        confidence=0.98,
+                        reason=f"Titles match and form numbers match: {old_form_number}",
+                        changed_sections=changed_sections
+                    )
+                else:
+                    # Same title but form numbers differ or missing - still same form
+                    return MatchResult(
+                        match_type=MatchType.FORM_NUMBER_MATCH,
+                        similarity_score=diff.similarity_score,
+                        form_number_old=old_form_number,
+                        form_number_new=new_form_number,
+                        title_old=old_title,
+                        title_new=new_title,
+                        confidence=0.92,
+                        reason=f"Titles match: '{old_title}' (form numbers: {old_form_number or 'N/A'} vs {new_form_number or 'N/A'})",
+                        changed_sections=changed_sections
+                    )
+        
+        # Strategy 1: Form number matching (high confidence)
         if old_form_number and new_form_number:
             if old_form_number.upper() == new_form_number.upper():
                 # Form numbers match - check if title changed
@@ -382,7 +421,7 @@ class FormMatcher:
                 )
         
         # Strategy 2: Text similarity matching
-        if diff.similarity_score >= self.HIGH_SIMILARITY_THRESHOLD:
+        if diff.similarity_score >= self.high_similarity_threshold:
             return MatchResult(
                 match_type=MatchType.SIMILARITY_MATCH,
                 similarity_score=diff.similarity_score,
@@ -395,7 +434,7 @@ class FormMatcher:
                 changed_sections=changed_sections
             )
         
-        elif diff.similarity_score < self.LOW_SIMILARITY_THRESHOLD:
+        elif diff.similarity_score < self.low_similarity_threshold:
             return MatchResult(
                 match_type=MatchType.NEW_FORM,
                 similarity_score=diff.similarity_score,

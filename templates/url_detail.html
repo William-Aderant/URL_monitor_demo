@@ -360,6 +360,24 @@
     <div class="diff-modal-content">
         <button class="diff-modal-close" onclick="closeDiffViewer()">×</button>
         <h2 style="margin-bottom: 16px;">🔍 Visual Diff - Changes Highlighted</h2>
+        
+        <!-- Page Navigation -->
+        <div id="diffPageNavigation" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button id="diffPrevPage" class="btn btn-secondary btn-sm" onclick="changeDiffPage(-1)" disabled>← Previous</button>
+                    <span id="diffPageInfo" style="font-weight: 600; min-width: 120px; text-align: center;">
+                        Page <span id="diffCurrentPage">1</span> of <span id="diffTotalPages">1</span>
+                    </span>
+                    <button id="diffNextPage" class="btn btn-secondary btn-sm" onclick="changeDiffPage(1)" disabled>Next →</button>
+                </div>
+                <div id="diffAffectedPagesInfo" style="font-size: 0.875rem; color: var(--text-secondary);">
+                    <span style="color: var(--warning); font-weight: 600;">⚠️</span>
+                    <span>Changes on pages: <span id="diffAffectedPagesList">-</span></span>
+                </div>
+            </div>
+        </div>
+        
         <div id="diffImageContainer" style="text-align: center;">
             <div id="diffLoading" style="padding: 40px; color: var(--text-secondary);">
                 Loading diff image...
@@ -411,28 +429,123 @@ async function extractTitle(urlId, versionId) {
     }
 }
 
-function showDiffViewer(urlId, versionId) {
+let diffViewerState = {
+    urlId: null,
+    versionId: null,
+    currentPage: 0,
+    totalPages: 1,
+    affectedPages: []
+};
+
+async function showDiffViewer(urlId, versionId) {
     const modal = document.getElementById('diffModal');
     const diffImage = document.getElementById('diffImage');
     const diffLoading = document.getElementById('diffLoading');
+    const pageNav = document.getElementById('diffPageNavigation');
     
     // Show modal
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     
+    // Reset state
+    diffViewerState.urlId = urlId;
+    diffViewerState.versionId = versionId;
+    diffViewerState.currentPage = 0;
+    
+    // Show loading
+    diffLoading.style.display = 'block';
+    diffImage.style.display = 'none';
+    pageNav.style.display = 'none';
+    
+    try {
+        // First, get page info
+        const infoResponse = await fetch(`/api/urls/${urlId}/versions/${versionId}/diff-info`);
+        if (infoResponse.ok) {
+            const info = await infoResponse.json();
+            diffViewerState.totalPages = info.page_count || 1;
+            diffViewerState.affectedPages = info.affected_pages || [];
+            
+            // Update UI
+            // Note: affectedPages from API are 1-indexed, but we need to convert to 0-indexed for display
+            document.getElementById('diffTotalPages').textContent = diffViewerState.totalPages;
+            document.getElementById('diffAffectedPagesList').textContent = 
+                diffViewerState.affectedPages.length > 0 
+                    ? diffViewerState.affectedPages.join(', ')  // Already 1-indexed from API
+                    : 'None';
+            
+            // Show navigation if multi-page
+            if (diffViewerState.totalPages > 1) {
+                pageNav.style.display = 'block';
+                updatePageNavigation();
+            }
+        }
+        
+        // Load first page diff image
+        await loadDiffPage(0);
+    } catch (error) {
+        diffLoading.innerHTML = `❌ Failed to load diff info: ${error.message}`;
+    }
+}
+
+async function loadDiffPage(pageNum) {
+    const diffImage = document.getElementById('diffImage');
+    const diffLoading = document.getElementById('diffLoading');
+    
+    // Validate page number
+    if (pageNum < 0 || pageNum >= diffViewerState.totalPages) {
+        return;
+    }
+    
+    diffViewerState.currentPage = pageNum;
+    
     // Show loading
     diffLoading.style.display = 'block';
     diffImage.style.display = 'none';
     
-    // Load diff image
-    diffImage.src = `/api/urls/${urlId}/versions/${versionId}/diff-preview`;
+    // Update page info
+    document.getElementById('diffCurrentPage').textContent = pageNum + 1;
+    updatePageNavigation();
+    
+    // Load diff image for this page
+    const imageUrl = `/api/urls/${diffViewerState.urlId}/versions/${diffViewerState.versionId}/diff-preview?page=${pageNum}`;
+    diffImage.src = imageUrl;
+    
     diffImage.onload = function() {
         diffLoading.style.display = 'none';
         diffImage.style.display = 'block';
     };
+    
     diffImage.onerror = function() {
-        diffLoading.innerHTML = '❌ Failed to load diff image. The diff may not be available for this version.';
+        diffLoading.innerHTML = `❌ Failed to load diff image for page ${pageNum + 1}.`;
     };
+}
+
+function changeDiffPage(delta) {
+    const newPage = diffViewerState.currentPage + delta;
+    if (newPage >= 0 && newPage < diffViewerState.totalPages) {
+        loadDiffPage(newPage);
+    }
+}
+
+function updatePageNavigation() {
+    const prevBtn = document.getElementById('diffPrevPage');
+    const nextBtn = document.getElementById('diffNextPage');
+    const currentPageEl = document.getElementById('diffCurrentPage');
+    
+    // Update button states
+    prevBtn.disabled = diffViewerState.currentPage === 0;
+    nextBtn.disabled = diffViewerState.currentPage >= diffViewerState.totalPages - 1;
+    
+    // Highlight current page if it has changes
+    // Note: affectedPages are 1-indexed, currentPage is 0-indexed, so add 1 for comparison
+    const pageHasChanges = diffViewerState.affectedPages.includes(diffViewerState.currentPage + 1);
+    if (pageHasChanges) {
+        currentPageEl.style.color = 'var(--warning)';
+        currentPageEl.style.fontWeight = '700';
+    } else {
+        currentPageEl.style.color = '';
+        currentPageEl.style.fontWeight = '';
+    }
 }
 
 function closeDiffViewer() {
@@ -441,10 +554,21 @@ function closeDiffViewer() {
     document.body.style.overflow = '';
 }
 
-// Close modal on Escape key
+// Close modal on Escape key, navigate pages with arrow keys
 document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('diffModal');
+    if (!modal.classList.contains('active')) {
+        return;
+    }
+    
     if (e.key === 'Escape') {
         closeDiffViewer();
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        changeDiffPage(-1);
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        changeDiffPage(1);
     }
 });
 

@@ -87,6 +87,123 @@ def migrate_change_detection_columns() -> None:
         conn.commit()
 
 
+def migrate_review_workflow_columns() -> None:
+    """
+    Add review workflow and action recommendation columns to change_logs.
+    Implements REQ-001, REQ-003, REQ-004, REQ-013, REQ-014 from PoC.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "change_logs" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("change_logs")]
+    
+    # New columns for action recommendations and review workflow
+    new_columns = [
+        # AI Action Recommendation (REQ-001, REQ-003)
+        ("recommended_action", "VARCHAR(50)"),  # auto_approve, review_suggested, manual_required, etc.
+        ("action_confidence", "FLOAT"),  # Confidence in the recommendation
+        ("action_rationale", "TEXT"),  # Human-readable explanation
+        
+        # Review workflow (REQ-013, REQ-014)
+        ("review_status", "VARCHAR(50) DEFAULT 'pending'"),  # pending, approved, rejected, deferred
+        
+        # Classification override (REQ-004)
+        ("classification_override", "VARCHAR(50)"),  # Human override of AI classification
+        ("override_reason", "TEXT"),  # Reason for override
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to change_logs")
+                conn.execute(text(f"ALTER TABLE change_logs ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+
+
+def migrate_fast_detection_columns() -> None:
+    """
+    Add fast change detection columns to monitored_urls table.
+    Implements three-tier change detection: HTTP headers and quick hash.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "monitored_urls" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("monitored_urls")]
+    
+    # New columns for fast change detection
+    new_columns = [
+        # Tier 1: HTTP headers
+        ("last_modified_header", "DATETIME"),
+        ("etag_header", "VARCHAR(255)"),
+        ("content_length_header", "INTEGER"),
+        # Tier 2: Quick hash
+        ("quick_hash", "VARCHAR(64)"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to monitored_urls")
+                conn.execute(text(f"ALTER TABLE monitored_urls ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+
+
+def migrate_state_domain_columns() -> None:
+    """
+    Add state and domain_category columns to monitored_urls table.
+    Also backfills existing Alaska URLs with appropriate values.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "monitored_urls" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("monitored_urls")]
+    
+    # New columns for state/domain organization
+    new_columns = [
+        ("state", "VARCHAR(50)"),
+        ("domain_category", "VARCHAR(100)"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to monitored_urls")
+                conn.execute(text(f"ALTER TABLE monitored_urls ADD COLUMN {col_name} {col_type}"))
+        
+        # Backfill existing Alaska URLs
+        conn.execute(text("""
+            UPDATE monitored_urls 
+            SET state = 'Alaska', domain_category = 'courts.alaska.gov'
+            WHERE url LIKE '%courts.alaska.gov%' AND state IS NULL
+        """))
+        
+        # Backfill existing California URLs (courts.ca.gov)
+        conn.execute(text("""
+            UPDATE monitored_urls 
+            SET state = 'California', domain_category = 'courts.ca.gov'
+            WHERE url LIKE '%courts.ca.gov%' AND state IS NULL
+        """))
+        
+        # Backfill localhost test URLs
+        conn.execute(text("""
+            UPDATE monitored_urls 
+            SET state = 'Test', domain_category = 'localhost'
+            WHERE url LIKE '%localhost%' AND state IS NULL
+        """))
+        
+        conn.commit()
+        logger.info("State and domain columns migrated and backfilled")
+
+
 def run_migrations() -> None:
     """
     Run database migrations.
@@ -100,11 +217,16 @@ def run_migrations() -> None:
     if missing_tables:
         logger.info("Creating missing tables", tables=missing_tables)
         init_db()
+        # Run backfill migrations for newly created tables
+        migrate_state_domain_columns()
     else:
         logger.info("All tables exist", tables=list(table_status.keys()))
         # Run column migrations for existing tables
         migrate_title_columns()
         migrate_change_detection_columns()
+        migrate_review_workflow_columns()
+        migrate_fast_detection_columns()
+        migrate_state_domain_columns()
 
 
 def seed_sample_urls(db_session) -> None:

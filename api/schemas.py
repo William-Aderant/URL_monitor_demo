@@ -65,11 +65,71 @@ class ChangeLogResponse(BaseModel):
     text_hash_changed: bool = False
     detected_at: datetime
     
+    # Enhanced change detection fields
+    match_type: Optional[str] = None
+    similarity_score: Optional[float] = None
+    relocated_from_url: Optional[str] = None
+    
+    # AI Action Recommendation
+    recommended_action: Optional[str] = None
+    action_confidence: Optional[float] = None
+    action_rationale: Optional[str] = None
+    
+    # Review workflow
+    review_status: str = "pending"
+    reviewed: bool = False
+    reviewed_at: Optional[datetime] = None
+    reviewed_by: Optional[str] = None
+    review_notes: Optional[str] = None
+    
+    # Classification override
+    classification_override: Optional[str] = None
+    override_reason: Optional[str] = None
+    
     # Include related data
     url_name: Optional[str] = None
     
     class Config:
         from_attributes = True
+
+
+class ReviewRequest(BaseModel):
+    """Schema for submitting a review action."""
+    action: str  # approved, rejected, deferred
+    notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+
+
+class ReviewResponse(BaseModel):
+    """Schema for review action response."""
+    success: bool
+    change_id: int
+    review_status: str
+    reviewed_at: Optional[datetime] = None
+    message: Optional[str] = None
+
+
+class ClassificationOverrideRequest(BaseModel):
+    """Schema for overriding AI classification."""
+    classification: str  # new_form, updated_same_name, updated_name_change, false_positive
+    reason: str
+    overridden_by: Optional[str] = None
+
+
+class BulkReviewRequest(BaseModel):
+    """Schema for bulk review actions."""
+    change_ids: list[int]
+    action: str  # approved, rejected, deferred
+    notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+
+
+class BulkReviewResponse(BaseModel):
+    """Schema for bulk review response."""
+    success: bool
+    processed: int
+    failed: int
+    details: list[dict]
 
 
 class MonitoringRunRequest(BaseModel):

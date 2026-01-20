@@ -400,7 +400,9 @@
             </a>
             <nav>
                 <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+                <a href="/triage" class="{% if request.url.path == '/triage' %}active{% endif %}">🎯 Triage</a>
                 <a href="/changes" class="{% if request.url.path == '/changes' %}active{% endif %}">Changes</a>
+                <a href="/metrics" class="{% if request.url.path == '/metrics' %}active{% endif %}">📊 Metrics</a>
             </nav>
             <div class="api-meter" id="api-meter">
                 <span class="api-meter-label">AWS Calls:</span>

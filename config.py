@@ -20,6 +20,12 @@ class Settings:
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     AWS_LAMBDA_SCRAPER_FUNCTION: str = os.getenv("AWS_LAMBDA_SCRAPER_FUNCTION", "")
     
+    # AWS Kendra
+    AWS_KENDRA_INDEX_ID: str = os.getenv("AWS_KENDRA_INDEX_ID", "")
+    AWS_KENDRA_DATA_SOURCE_ID: str = os.getenv("AWS_KENDRA_DATA_SOURCE_ID", "")
+    KENDRA_INDEXING_ENABLED: bool = os.getenv("KENDRA_INDEXING_ENABLED", "False").lower() == "true"
+    KENDRA_SEARCH_ENABLED: bool = os.getenv("KENDRA_SEARCH_ENABLED", "False").lower() == "true"
+    
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///data/url_monitor.db")
     
@@ -91,6 +97,14 @@ class Settings:
         # AWS Lambda function name is optional (will fall back to direct HTTP if not set)
         if cls.AWS_LAMBDA_SCRAPER_FUNCTION and not all(aws_vars):
             issues.append("AWS_LAMBDA_SCRAPER_FUNCTION is set but AWS credentials are missing")
+        
+        # Kendra index ID is required if Kendra features are enabled
+        if (cls.KENDRA_INDEXING_ENABLED or cls.KENDRA_SEARCH_ENABLED) and not cls.AWS_KENDRA_INDEX_ID:
+            issues.append("KENDRA_INDEXING_ENABLED or KENDRA_SEARCH_ENABLED is True but AWS_KENDRA_INDEX_ID is not set")
+        
+        # Kendra requires AWS credentials
+        if (cls.KENDRA_INDEXING_ENABLED or cls.KENDRA_SEARCH_ENABLED) and not all(aws_vars):
+            issues.append("Kendra features enabled but AWS credentials are missing")
         
         return issues
 

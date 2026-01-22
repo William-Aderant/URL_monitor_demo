@@ -193,7 +193,7 @@ def migrate_state_domain_columns() -> None:
             WHERE url LIKE '%courts.ca.gov%' AND state IS NULL
         """))
         
-        # Backfill localhost test URLs
+        # Backfill localhost test URLs (deprecated - kept for compatibility)
         conn.execute(text("""
             UPDATE monitored_urls 
             SET state = 'Test', domain_category = 'localhost'
@@ -202,6 +202,34 @@ def migrate_state_domain_columns() -> None:
         
         conn.commit()
         logger.info("State and domain columns migrated and backfilled")
+
+
+def migrate_kendra_columns() -> None:
+    """
+    Add AWS Kendra tracking columns to pdf_versions table.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "pdf_versions" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("pdf_versions")]
+    
+    # New columns for Kendra indexing tracking
+    new_columns = [
+        ("kendra_document_id", "VARCHAR(255)"),
+        ("kendra_indexed_at", "DATETIME"),
+        ("kendra_index_status", "VARCHAR(50)"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to pdf_versions")
+                conn.execute(text(f"ALTER TABLE pdf_versions ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+        logger.info("Kendra columns migrated")
 
 
 def run_migrations() -> None:
@@ -227,6 +255,7 @@ def run_migrations() -> None:
         migrate_review_workflow_columns()
         migrate_fast_detection_columns()
         migrate_state_domain_columns()
+        migrate_kendra_columns()
 
 
 def seed_sample_urls(db_session) -> None:

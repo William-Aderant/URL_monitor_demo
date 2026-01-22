@@ -53,6 +53,7 @@ from services.link_crawler import LinkCrawler
 from services.form_matcher import FormMatcher, MatchType
 from services.visual_diff import VisualDiff
 from services.action_recommender import action_recommender
+from services.kendra_indexer import kendra_indexer
 from fetcher.header_checker import HeaderChecker
 from diffing.quick_hasher import QuickHasher
 
@@ -255,10 +256,26 @@ class MonitoringOrchestrator:
                     logger.warning(
                         "Download failed",
                         url=pdf_url,
-                        error=download_result.error
+                        error=download_result.error,
+                        status_code=download_result.status_code
                     )
                     
                     print(f"\n  ⚠️  Download failed: {download_result.error}")
+                    
+                    # Only trigger relocation search for 404 errors (URL not found)
+                    # Other errors (timeout, 403, etc.) might be temporary or server-side issues
+                    is_404 = download_result.status_code == 404
+                    
+                    if not is_404:
+                        logger.info(
+                            "Download failed but not a 404 - skipping relocation search",
+                            url=pdf_url,
+                            status_code=download_result.status_code,
+                            error=download_result.error
+                        )
+                        print(f"  ⚠️  Download failed with status {download_result.status_code} (not 404) - skipping relocation search")
+                        print(f"     This may be a temporary server issue. The URL will be retried on the next check.")
+                        return False
                     
                     # Check if this is a new form (no versions exist) BEFORE trying relocation
                     previous_version = self.version_manager.get_latest_version(db, monitored_url.id)
@@ -781,6 +798,29 @@ class MonitoringOrchestrator:
                         
                     db.commit()
                     
+                    # Step 7: Index in Kendra (if enabled)
+                    if kendra_indexer.is_enabled() and should_create_version:
+                        try:
+                            index_result = kendra_indexer.index_version(db, new_version.id)
+                            if index_result.success:
+                                logger.info(
+                                    "Version indexed in Kendra",
+                                    version_id=new_version.id,
+                                    document_id=index_result.document_id
+                                )
+                            else:
+                                logger.warning(
+                                    "Failed to index version in Kendra",
+                                    version_id=new_version.id,
+                                    error=index_result.error
+                                )
+                        except Exception as e:
+                            logger.error(
+                                "Error indexing version in Kendra",
+                                version_id=new_version.id,
+                                error=str(e)
+                            )
+                    
                     # Build detailed change summary
                     change_summary = {
                         "change_type": change_result.change_type,
@@ -1048,80 +1088,7 @@ def cmd_init():
     logger.info("Database initialized")
 
 
-def cmd_seed():
-    """Seed test form URLs (localhost:5001 test forms only)."""
-    logger.info("Seeding test form URLs")
-    settings.ensure_directories()
-    run_migrations()
-    
-    # Test forms configuration
-    test_pdfs = [
-        {
-            "name": "Test CIV-001 - Motion to Dismiss",
-            "url": "http://localhost:5001/pdfs/civ-001.pdf",
-            "description": "Test form: Motion to Dismiss",
-            "parent_page_url": "http://localhost:5001/pdfs/"
-        },
-        {
-            "name": "Test CIV-002 - Petition for Custody",
-            "url": "http://localhost:5001/pdfs/civ-002.pdf",
-            "description": "Test form: Petition for Custody",
-            "parent_page_url": "http://localhost:5001/pdfs/"
-        },
-        {
-            "name": "Test CIV-003 - Petition for Appeal",
-            "url": "http://localhost:5001/pdfs/civ-003.pdf",
-            "description": "Test form: Petition for Appeal",
-            "parent_page_url": "http://localhost:5001/pdfs/"
-        }
-    ]
-    
-    db = SessionLocal()
-    try:
-        # Remove non-test URLs first
-        non_test_urls = db.query(MonitoredURL).filter(
-            ~MonitoredURL.url.like("http://localhost:5001%")
-        ).all()
-        
-        if non_test_urls:
-            print(f"\n🧹 Removing {len(non_test_urls)} non-test URLs...")
-            for url in non_test_urls:
-                # Delete associated change logs and versions first
-                db.query(ChangeLog).filter_by(monitored_url_id=url.id).delete()
-                db.query(PDFVersion).filter_by(monitored_url_id=url.id).delete()
-                db.delete(url)
-            db.commit()
-        
-        # Add test forms
-        print("\n📋 Setting up test forms...")
-        for pdf in test_pdfs:
-            existing = db.query(MonitoredURL).filter_by(url=pdf["url"]).first()
-            if not existing:
-                m = MonitoredURL(**pdf)
-                db.add(m)
-                print(f"  ✓ Added: {pdf['name']}")
-            else:
-                # Update URL if it was changed (e.g., from civ-003-final.pdf)
-                if existing.url != pdf["url"]:
-                    existing.url = pdf["url"]
-                    print(f"  ✓ Fixed URL: {pdf['name']}")
-                else:
-                    print(f"  • Exists: {pdf['name']}")
-        
-        db.commit()
-        
-        total = db.query(MonitoredURL).count()
-        print(f"\n=== Test Forms Ready ({total} URLs) ===")
-        print("\nNext steps:")
-        print("  1. Start test server: python test_server.py")
-        print("  2. Run monitoring: python cli.py run")
-        print("  3. Test scenarios: python test_site/simulate_update.py <scenario>")
-        print("     Scenarios: title, content, relocate, new_form, format_only, revert")
-        
-    finally:
-        db.close()
-    
-    logger.info("Test form URLs seeded")
+# cmd_seed function removed - localhost testing URLs no longer supported
 
 
 def cmd_run(url_id: Optional[int] = None, max_workers: Optional[int] = None):
@@ -1236,6 +1203,92 @@ def cmd_status():
         db.close()
 
 
+def cmd_kendra_index_all(latest_only: bool = False, max_workers: Optional[int] = None):
+    """Index all PDF versions in Kendra."""
+    db = SessionLocal()
+    try:
+        if not kendra_indexer.is_enabled():
+            print("ERROR: Kendra indexing is not enabled or not available.")
+            print("Set KENDRA_INDEXING_ENABLED=true and configure AWS_KENDRA_INDEX_ID")
+            return
+        
+        workers_info = f" (workers: {max_workers or 'auto'})" if max_workers or settings.MAX_WORKERS > 1 else ""
+        print(f"Indexing all PDF versions in Kendra (latest_only={latest_only}{workers_info})...")
+        result = kendra_indexer.index_all_versions(db, latest_only=latest_only, max_workers=max_workers)
+        
+        if result.get("success"):
+            print(f"✓ Successfully indexed {result['indexed']} versions")
+            if result.get("failed", 0) > 0:
+                print(f"⚠ Failed to index {result['failed']} versions")
+        else:
+            print(f"ERROR: {result.get('error', 'Unknown error')}")
+            if result.get("failed", 0) > 0:
+                print(f"Failed to index {result['failed']} versions")
+        
+        if result.get("url_results"):
+            print("\nPer-URL results:")
+            for url_result in result["url_results"]:
+                status = "✓" if url_result.get("success") else "✗"
+                print(f"  {status} {url_result.get('url_name', 'Unknown')}: "
+                      f"{url_result.get('indexed', 0)} indexed, "
+                      f"{url_result.get('failed', 0)} failed")
+    finally:
+        db.close()
+
+
+def cmd_kendra_status():
+    """Check Kendra index status."""
+    from services.kendra_client import kendra_client
+    
+    print("Kendra Index Status")
+    print("=" * 50)
+    
+    if not kendra_client.is_available():
+        print("✗ Kendra client not available")
+        print("  Check AWS credentials and AWS_KENDRA_INDEX_ID configuration")
+        return
+    
+    status = kendra_client.get_index_status()
+    
+    if status.get("available"):
+        print(f"✓ Index available: {status.get('name', 'Unknown')}")
+        print(f"  Index ID: {status.get('index_id', 'N/A')}")
+        print(f"  Status: {status.get('status', 'N/A')}")
+        print(f"  Edition: {status.get('edition', 'N/A')}")
+        print(f"  Created: {status.get('created_at', 'N/A')}")
+        print(f"  Updated: {status.get('updated_at', 'N/A')}")
+    else:
+        print(f"✗ Index not available: {status.get('error', 'Unknown error')}")
+    
+    print("\nConfiguration:")
+    from config import settings
+    print(f"  KENDRA_INDEXING_ENABLED: {settings.KENDRA_INDEXING_ENABLED}")
+    print(f"  KENDRA_SEARCH_ENABLED: {settings.KENDRA_SEARCH_ENABLED}")
+    print(f"  AWS_KENDRA_INDEX_ID: {settings.AWS_KENDRA_INDEX_ID or 'Not set'}")
+
+
+def cmd_kendra_sync():
+    """Sync Kendra index with database."""
+    db = SessionLocal()
+    try:
+        if not kendra_indexer.is_enabled():
+            print("ERROR: Kendra indexing is not enabled or not available.")
+            return
+        
+        print("Syncing Kendra index with database...")
+        result = kendra_indexer.sync_index_with_database(db)
+        
+        if result.get("success"):
+            print(f"✓ Sync completed")
+            print(f"  Checked: {result.get('checked', 0)} versions")
+            print(f"  Re-indexed: {result.get('re_indexed', 0)} versions")
+            print(f"  Missing: {result.get('missing', 0)} versions")
+        else:
+            print(f"ERROR: {result.get('error', 'Unknown error')}")
+    finally:
+        db.close()
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -1244,14 +1297,12 @@ def main():
         epilog="""
 Commands:
   init      Initialize database
-  seed      Add test form URLs (localhost:5001)
   run       Run monitoring cycle
   reset     Reset test environment (clear data + revert PDFs)
   status    Show status of all URLs
 
 Examples:
   python cli.py init          # Initialize database
-  python cli.py seed          # Add test forms
   python cli.py run           # Run monitoring on all URLs
   python cli.py run --url-id 1  # Monitor specific URL
   python cli.py reset         # Clear data and reset test PDFs
@@ -1267,37 +1318,70 @@ Test workflow:
         """
     )
     
-    parser.add_argument(
-        "command",
-        choices=["init", "seed", "run", "reset", "status"],
-        help="Command to execute"
-    )
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
-    parser.add_argument(
+    # Init command
+    subparsers.add_parser("init", help="Initialize database")
+    
+    # Run command
+    run_parser = subparsers.add_parser("run", help="Run monitoring cycle")
+    run_parser.add_argument(
         "--url-id",
         type=int,
-        help="Specific URL ID to process (for 'run' command)"
+        help="Specific URL ID to process"
     )
-    
-    parser.add_argument(
+    run_parser.add_argument(
         "--max-workers",
         type=int,
         default=None,
-        help="Maximum number of parallel workers for processing URLs (default: from config or 10)"
+        help="Maximum number of parallel workers (default: from config)"
     )
+    
+    # Reset command
+    subparsers.add_parser("reset", help="Reset test environment")
+    
+    # Status command
+    subparsers.add_parser("status", help="Show status of all URLs")
+    
+    # Kendra commands
+    kendra_parser = subparsers.add_parser("kendra", help="Kendra index management")
+    kendra_subparsers = kendra_parser.add_subparsers(dest="kendra_command", help="Kendra subcommand")
+    
+    kendra_index_all = kendra_subparsers.add_parser("index-all", help="Index all PDF versions in Kendra")
+    kendra_index_all.add_argument(
+        "--latest-only",
+        action="store_true",
+        help="Only index latest version per URL"
+    )
+    kendra_index_all.add_argument(
+        "--max-workers",
+        type=int,
+        default=None,
+        help="Maximum number of parallel workers (default: from config)"
+    )
+    
+    kendra_subparsers.add_parser("status", help="Check Kendra index status")
+    kendra_subparsers.add_parser("sync", help="Sync Kendra index with database")
     
     args = parser.parse_args()
     
     if args.command == "init":
         cmd_init()
-    elif args.command == "seed":
-        cmd_seed()
     elif args.command == "run":
         cmd_run(args.url_id, max_workers=args.max_workers)
     elif args.command == "reset":
         cmd_reset()
     elif args.command == "status":
         cmd_status()
+    elif args.command == "kendra":
+        if args.kendra_command == "index-all":
+            cmd_kendra_index_all(latest_only=args.latest_only, max_workers=args.max_workers)
+        elif args.kendra_command == "status":
+            cmd_kendra_status()
+        elif args.kendra_command == "sync":
+            cmd_kendra_sync()
+        else:
+            kendra_parser.print_help()
 
 
 if __name__ == "__main__":

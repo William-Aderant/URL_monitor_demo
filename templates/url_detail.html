@@ -271,6 +271,30 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Similar Forms Section -->
+<div class="card" id="similar-forms-card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <div class="card-title">🔍 Similar Forms</div>
+    </div>
+    <div id="similar-forms-content">
+        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+            Loading similar forms...
+        </div>
+    </div>
+</div>
+
+<!-- Similar Forms Section -->
+<div class="card" id="similar-forms-card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <div class="card-title">🔍 Similar Forms</div>
+    </div>
+    <div id="similar-forms-content">
+        <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+            Loading similar forms...
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -621,5 +645,55 @@ async function unapproveChange(changeId) {
         alert(`Error: ${error.message}`);
     }
 }
+
+// Load similar forms
+async function loadSimilarForms() {
+    const similarFormsCard = document.getElementById('similar-forms-card');
+    const similarFormsContent = document.getElementById('similar-forms-content');
+    
+    try {
+        const response = await fetch(`/api/urls/{{ url.id }}/similar?max_results=5`);
+        const data = await response.json();
+        
+        if (response.ok && data.success && data.results && data.results.length > 0) {
+            similarFormsCard.style.display = 'block';
+            
+            let html = '<div style="display: grid; gap: 12px;">';
+            for (const result of data.results) {
+                html += `
+                    <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                            <h4 style="margin: 0; font-size: 16px;">
+                                <a href="/url/${result.url_id}" style="color: var(--accent); text-decoration: none;">
+                                    ${result.title || result.url_name}
+                                </a>
+                            </h4>
+                            <span style="font-size: 12px; color: var(--text-secondary);">
+                                ${Math.round(result.relevance_score * 100)}% match
+                            </span>
+                        </div>
+                        ${result.form_number ? `<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Form: ${result.form_number}</div>` : ''}
+                        ${result.excerpt ? `<div style="color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin-bottom: 8px;">${result.excerpt.substring(0, 150)}${result.excerpt.length > 150 ? '...' : ''}</div>` : ''}
+                        <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary);">
+                            <a href="${result.url}" target="_blank" style="color: var(--accent); text-decoration: none;">View PDF →</a>
+                            ${result.state ? `<span>State: ${result.state}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            similarFormsContent.innerHTML = html;
+        } else {
+            // Hide if no results or error
+            similarFormsCard.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error loading similar forms:', error);
+        similarFormsCard.style.display = 'none';
+    }
+}
+
+// Load similar forms on page load
+loadSimilarForms();
 </script>
 {% endblock %}

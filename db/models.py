@@ -92,6 +92,11 @@ class PDFVersion(Base):
     # Revision date extracted from PDF (REQ-006)
     revision_date = Column(String(50), nullable=True)  # Extracted revision date string
     
+    # AWS Kendra indexing tracking (optional)
+    kendra_document_id = Column(String(255), nullable=True)  # Kendra document ID
+    kendra_indexed_at = Column(DateTime, nullable=True)  # Timestamp of indexing
+    kendra_index_status = Column(String(50), nullable=True)  # pending, indexed, failed
+    
     # Timestamps
     fetched_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -56,6 +56,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 20px;
+        }
+        
+        .search-bar {
+            display: flex;
+            align-items: center;
         }
         
         .logo {
@@ -403,7 +409,25 @@
                 <a href="/triage" class="{% if request.url.path == '/triage' %}active{% endif %}">🎯 Triage</a>
                 <a href="/changes" class="{% if request.url.path == '/changes' %}active{% endif %}">Changes</a>
                 <a href="/metrics" class="{% if request.url.path == '/metrics' %}active{% endif %}">📊 Metrics</a>
+                <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}">🔍 Search</a>
             </nav>
+            <div class="search-bar">
+                <form action="/search" method="get" style="display: flex; gap: 8px; align-items: center;">
+                    <input 
+                        type="text" 
+                        name="q" 
+                        placeholder="Search forms..." 
+                        class="search-input"
+                        value="{{ request.query_params.get('q', '') }}"
+                    >
+                    <button 
+                        type="submit"
+                        style="padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;"
+                    >
+                        Search
+                    </button>
+                </form>
+            </div>
             <div class="api-meter" id="api-meter">
                 <span class="api-meter-label">AWS Calls:</span>
                 <span class="api-meter-count" id="api-count">0</span>

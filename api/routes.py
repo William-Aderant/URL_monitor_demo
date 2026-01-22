@@ -7,6 +7,7 @@ Thin routes that delegate to service layer.
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Form
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -34,11 +35,46 @@ from storage.file_store import FileStore
 from storage.version_manager import VersionManager
 from services.action_recommender import action_recommender, ActionType
 from services.metrics_tracker import metrics_tracker
+from services.kendra_search import kendra_search_service
+from services.kendra_indexer import kendra_indexer
+from services.kendra_client import kendra_client
 
 router = APIRouter()
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
+
+
+def highlight_search_terms(text: str, query: str) -> str:
+    """
+    Highlight search terms in text by wrapping them in <mark> tags.
+    
+    Args:
+        text: The text to highlight
+        query: The search query (will be split into individual words)
+        
+    Returns:
+        Text with search terms highlighted
+    """
+    if not text or not query:
+        return text or ""
+    
+    # Split query into individual words (case-insensitive)
+    query_words = re.findall(r'\b\w+\b', query.lower())
+    if not query_words:
+        return text
+    
+    # Create a pattern that matches whole words only (case-insensitive)
+    pattern = '|'.join(re.escape(word) for word in query_words)
+    pattern = r'\b(' + pattern + r')\b'
+    
+    # Replace matches with highlighted version
+    def replace_func(match):
+        return f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px;">{match.group(0)}</mark>'
+    
+    highlighted = re.sub(pattern, replace_func, text, flags=re.IGNORECASE)
+    return highlighted
+
 
 # Initialize services
 file_store = FileStore()
@@ -350,6 +386,73 @@ async def triage_dashboard(
             "stats": stats,
             "current_filter": status,
             "action_filter": action,
+            "now": datetime.utcnow()
+        }
+    )
+
+
+@router.get("/search", response_class=HTMLResponse)
+async def search_page(
+    request: Request,
+    q: Optional[str] = None,
+    state: Optional[str] = None,
+    domain: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Search page with results."""
+    error = None
+    results = None
+    total_results = 0
+    
+    if q:
+        response = kendra_search_service.search(
+            db=db,
+            query=q,
+            state=state,
+            domain=domain,
+            max_results=50
+        )
+        
+        if not response.success:
+            error = response.error
+        else:
+            results = []
+            for result in response.results:
+                # Truncate excerpt first, then highlight (to avoid cutting HTML tags)
+                excerpt_to_highlight = (result.excerpt or "")[:300]
+                if result.excerpt and len(result.excerpt) > 300:
+                    excerpt_to_highlight += "..."
+                
+                # Highlight search terms in excerpt and title
+                highlighted_excerpt = highlight_search_terms(excerpt_to_highlight, q) if excerpt_to_highlight else None
+                highlighted_title = highlight_search_terms(result.title or "", q) if result.title else None
+                
+                results.append({
+                    "url_id": result.url_id,
+                    "version_id": result.version_id,
+                    "url_name": result.url_name,
+                    "url": result.url,
+                    "form_number": result.form_number,
+                    "title": result.title,  # Keep original for links
+                    "title_highlighted": highlighted_title,  # Highlighted version for display
+                    "excerpt": result.excerpt,  # Keep original for reference
+                    "excerpt_highlighted": highlighted_excerpt,  # Highlighted and truncated version for display
+                    "relevance_score": result.relevance_score,
+                    "state": result.state,
+                    "domain_category": result.domain_category
+                })
+            total_results = response.total_results
+    
+    return templates.TemplateResponse(
+        "search.html",
+        {
+            "request": request,
+            "query": q,
+            "state": state,
+            "domain": domain,
+            "results": results,
+            "total_results": total_results,
+            "error": error,
             "now": datetime.utcnow()
         }
     )
@@ -1273,5 +1376,190 @@ async def get_jurisdiction_metrics(
     return {
         "period": f"{year}-{month:02d}",
         "jurisdictions": breakdown
+    }
+
+
+# ============================================================================
+# Kendra Search API Routes
+# ============================================================================
+
+@router.get("/api/search")
+async def search_forms(
+    q: str,
+    state: Optional[str] = None,
+    domain: Optional[str] = None,
+    max_results: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    Semantic search across all monitored forms using AWS Kendra.
+    
+    Args:
+        q: Natural language search query
+        state: Optional state filter
+        domain: Optional domain category filter
+        max_results: Maximum number of results (default: 20)
+        
+    Returns:
+        JSON with search results
+    """
+    if not kendra_search_service.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Kendra search is not enabled or not available. Check AWS credentials and KENDRA_SEARCH_ENABLED setting."
+        )
+    
+    response = kendra_search_service.search(
+        db=db,
+        query=q,
+        state=state,
+        domain=domain,
+        max_results=max_results
+    )
+    
+    if not response.success:
+        raise HTTPException(
+            status_code=500,
+            detail=response.error
+        )
+    
+    # Convert results to dict format
+    results = []
+    for result in response.results:
+        results.append({
+            "url_id": result.url_id,
+            "version_id": result.version_id,
+            "url_name": result.url_name,
+            "url": result.url,
+            "form_number": result.form_number,
+            "title": result.title,
+            "excerpt": result.excerpt,
+            "relevance_score": result.relevance_score,
+            "state": result.state,
+            "domain_category": result.domain_category
+        })
+    
+    return {
+        "success": True,
+        "query": q,
+        "total_results": response.total_results,
+        "results": results
+    }
+
+
+@router.get("/api/urls/{url_id}/similar")
+async def get_similar_forms(
+    url_id: int,
+    version_id: Optional[int] = None,
+    max_results: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Find similar forms to a given form using Kendra.
+    
+    Args:
+        url_id: Monitored URL ID
+        version_id: Optional version ID (uses latest if not provided)
+        max_results: Maximum number of similar forms to return
+        
+    Returns:
+        JSON with similar forms
+    """
+    if not kendra_search_service.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Kendra search is not enabled or not available"
+        )
+    
+    response = kendra_search_service.find_similar_forms(
+        db=db,
+        url_id=url_id,
+        version_id=version_id,
+        max_results=max_results
+    )
+    
+    if not response.success:
+        raise HTTPException(
+            status_code=500,
+            detail=response.error
+        )
+    
+    # Convert results to dict format
+    results = []
+    for result in response.results:
+        results.append({
+            "url_id": result.url_id,
+            "version_id": result.version_id,
+            "url_name": result.url_name,
+            "url": result.url,
+            "form_number": result.form_number,
+            "title": result.title,
+            "excerpt": result.excerpt,
+            "relevance_score": result.relevance_score,
+            "state": result.state,
+            "domain_category": result.domain_category
+        })
+    
+    return {
+        "success": True,
+        "url_id": url_id,
+        "version_id": version_id,
+        "total_results": response.total_results,
+        "results": results
+    }
+
+
+@router.post("/api/kendra/index/{version_id}")
+async def index_version(
+    version_id: int,
+    force: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger Kendra indexing for a specific version.
+    
+    Args:
+        version_id: PDF version ID to index
+        force: If True, re-index even if already indexed
+        
+    Returns:
+        JSON with indexing result
+    """
+    if not kendra_indexer.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Kendra indexing is not enabled or not available"
+        )
+    
+    result = kendra_indexer.index_version(db, version_id, force=force)
+    
+    if not result.success:
+        raise HTTPException(
+            status_code=500,
+            detail=result.error
+        )
+    
+    return {
+        "success": True,
+        "version_id": version_id,
+        "document_id": result.document_id
+    }
+
+
+@router.get("/api/kendra/status")
+async def get_kendra_status():
+    """
+    Get Kendra index status and configuration.
+    
+    Returns:
+        JSON with Kendra status information
+    """
+    status = kendra_client.get_index_status()
+    
+    return {
+        "kendra_available": kendra_client.is_available(),
+        "indexing_enabled": settings.KENDRA_INDEXING_ENABLED,
+        "search_enabled": settings.KENDRA_SEARCH_ENABLED,
+        "index_status": status
     }
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Script to clean up the URL database - keep only local test forms.
+DEPRECATED: This script was used to keep only localhost test forms.
+Localhost test URLs have been removed from the application.
+
+This file is kept for reference only and should not be used.
 """
 
 import structlog
@@ -23,7 +26,7 @@ from db.models import MonitoredURL, PDFVersion, ChangeLog
 
 
 def cleanup_to_test_only():
-    """Remove all URLs except localhost:5001 test forms."""
+    """DEPRECATED: Remove all URLs except localhost:5001 test forms."""
     settings.ensure_directories()
     run_migrations()
     
@@ -70,6 +73,6 @@ def cleanup_to_test_only():
 
 
 if __name__ == "__main__":
-    print("\n🧹 Cleaning up database to keep only test forms...\n")
-    cleanup_to_test_only()
-    print("✅ Done! Run 'python cli.py run' to monitor only the test forms.")
+    print("\n⚠️  DEPRECATED: This script is no longer needed.")
+    print("Localhost test URLs have been removed from the application.")
+    print("Use the web UI or API to manage monitored URLs instead.\n")

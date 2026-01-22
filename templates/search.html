@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Search Forms - PDF Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔍 Search Forms</h1>
+    <p>Search across all monitored forms using natural language queries</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<div class="search-container" style="margin-bottom: 30px;">
+    <form action="/search" method="get" style="display: flex; gap: 12px; max-width: 600px;">
+        <input 
+            type="text" 
+            name="q" 
+            placeholder="Enter search query (e.g., 'divorce forms', 'civil case cover sheet')..." 
+            value="{{ query }}"
+            style="flex: 1; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); font-size: 16px;"
+        >
+        <button 
+            type="submit"
+            style="padding: 12px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;"
+        >
+            Search
+        </button>
+    </form>
+    
+    {% if state or domain %}
+    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+        {% if state %}
+        <span style="padding: 4px 12px; background: var(--bg-tertiary); border-radius: 4px; font-size: 14px;">
+            State: {{ state }}
+        </span>
+        {% endif %}
+        {% if domain %}
+        <span style="padding: 4px 12px; background: var(--bg-tertiary); border-radius: 4px; font-size: 14px;">
+            Domain: {{ domain }}
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if query %}
+    {% if results %}
+    <div class="search-results">
+        <div style="margin-bottom: 20px; color: var(--text-secondary);">
+            Found {{ total_results }} result{% if total_results != 1 %}s{% endif %} for "{{ query }}"
+        </div>
+        
+        <div class="results-list">
+            {% for result in results %}
+            <div class="result-card" style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 18px;">
+                            <a href="/url/{{ result.url_id }}" style="color: var(--accent); text-decoration: none;">
+                                {% if result.title_highlighted %}
+                                    {{ result.title_highlighted|safe }}
+                                {% else %}
+                                    {{ result.title or result.url_name }}
+                                {% endif %}
+                            </a>
+                        </h3>
+                        {% if result.form_number %}
+                        <span style="color: var(--text-secondary); font-size: 14px;">
+                            Form: {{ result.form_number }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            Relevance: {{ "%.0f"|format((result.relevance_score or 0) * 100) }}%
+                        </div>
+                    </div>
+                </div>
+                
+                {% if result.excerpt %}
+                <div style="color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 12px;">
+                    {% if result.excerpt_highlighted %}
+                        {{ result.excerpt_highlighted|safe }}
+                    {% else %}
+                        {{ result.excerpt[:300] }}{% if result.excerpt|length > 300 %}...{% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
+                    <a href="{{ result.url }}" target="_blank" style="color: var(--accent); text-decoration: none;">
+                        View PDF →
+                    </a>
+                    {% if result.state %}
+                    <span>State: {{ result.state }}</span>
+                    {% endif %}
+                    {% if result.domain_category %}
+                    <span>Domain: {{ result.domain_category }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="no-results" style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+        <h2 style="margin-bottom: 8px;">No results found</h2>
+        <p>Try different search terms or check if Kendra search is enabled.</p>
+    </div>
+    {% endif %}
+{% else %}
+<div class="search-help" style="max-width: 800px; margin: 40px auto; padding: 30px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border);">
+    <h2 style="margin-bottom: 20px;">How to Search</h2>
+    <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 20px;">
+        Use natural language queries to search across all monitored forms. The search uses AWS Kendra's 
+        intelligent search capabilities to find relevant forms based on content, titles, and form numbers.
+    </p>
+    
+    <h3 style="margin-top: 24px; margin-bottom: 12px;">Example Queries:</h3>
+    <ul style="color: var(--text-secondary); line-height: 2; list-style: none; padding: 0;">
+        <li>• "divorce forms"</li>
+        <li>• "civil case cover sheet"</li>
+        <li>• "proof of service"</li>
+        <li>• "fee waiver request"</li>
+        <li>• "summons form"</li>
+    </ul>
+    
+    <div style="margin-top: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; border-left: 3px solid var(--accent);">
+        <strong>Note:</strong> Kendra search must be enabled in your configuration. 
+        Set <code>KENDRA_SEARCH_ENABLED=true</code> and configure <code>AWS_KENDRA_INDEX_ID</code>.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

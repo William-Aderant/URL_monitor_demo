@@ -448,15 +448,96 @@ class FormMatcher:
             )
         
         else:
-            # Uncertain range - needs manual review
-            return MatchResult(
-                match_type=MatchType.UNCERTAIN,
-                similarity_score=diff.similarity_score,
-                form_number_old=old_form_number,
-                form_number_new=new_form_number,
-                title_old=old_title,
-                title_new=new_title,
-                confidence=0.5,
+            # Uncertain range - try Kendra enhancement if available
+            return self._match_with_kendra_fallback(
+                diff=diff,
+                old_form_number=old_form_number,
+                new_form_number=new_form_number,
+                old_title=old_title,
+                new_title=new_title,
+                changed_sections=changed_sections
+            )
+    
+    def _match_with_kendra_fallback(
+        self,
+        diff,
+        old_form_number: Optional[str],
+        new_form_number: Optional[str],
+        old_title: Optional[str],
+        new_title: Optional[str],
+        changed_sections: List[str]
+    ) -> MatchResult:
+        """
+        Use Kendra to enhance matching for uncertain cases.
+        
+        This method is called when text similarity is in the uncertain range.
+        It queries Kendra to find similar forms and uses that information
+        to refine the match classification.
+        """
+        # Try to use Kendra if available
+        try:
+            from services.kendra_client import kendra_client
+            from config import settings
+            
+            if (settings.KENDRA_SEARCH_ENABLED and 
+                kendra_client.is_available() and 
+                new_form_number):
+                # Search for forms with similar form number or title
+                query_parts = []
+                if new_form_number:
+                    query_parts.append(new_form_number)
+                if new_title:
+                    query_parts.append(new_title)
+                
+                if query_parts:
+                    query = " ".join(query_parts)
+                    kendra_response = kendra_client.search(
+                        query=query,
+                        max_results=5
+                    )
+                    
+                    if kendra_response.success and kendra_response.results:
+                        # Check if any results match the old form number
+                        for result in kendra_response.results:
+                            result_form_number = result.metadata.get('form_number') if result.metadata else None
+                            
+                            # If we find a match with the old form number, increase confidence
+                            if (old_form_number and result_form_number and 
+                                old_form_number.upper() == result_form_number.upper()):
+                                logger.info(
+                                    "Kendra found matching form number",
+                                    old_form_number=old_form_number,
+                                    new_form_number=new_form_number,
+                                    kendra_confidence=result.relevance_score
+                                )
+                                # Boost confidence based on Kendra result
+                                enhanced_confidence = min(0.85, 0.5 + (result.relevance_score or 0.0) * 0.35)
+                                return MatchResult(
+                                    match_type=MatchType.SIMILARITY_MATCH,
+                                    similarity_score=diff.similarity_score,
+                                    form_number_old=old_form_number,
+                                    form_number_new=new_form_number,
+                                    title_old=old_title,
+                                    title_new=new_title,
+                                    confidence=enhanced_confidence,
+                                    reason=f"Uncertain similarity ({diff.similarity_score:.0%}), but Kendra found matching form number: {old_form_number}",
+                                    changed_sections=changed_sections
+                                )
+        except Exception as e:
+            logger.warning(
+                "Kendra enhancement failed, using default uncertain classification",
+                error=str(e)
+            )
+        
+        # Default uncertain classification
+        return MatchResult(
+            match_type=MatchType.UNCERTAIN,
+            similarity_score=diff.similarity_score,
+            form_number_old=old_form_number,
+            form_number_new=new_form_number,
+            title_old=old_title,
+            title_new=new_title,
+            confidence=0.5,
                 reason=f"Moderate similarity ({diff.similarity_score:.0%}) - manual review recommended",
                 changed_sections=changed_sections
             )

@@ -22,6 +22,7 @@ class DownloadResult:
     content_type: Optional[str] = None
     error: Optional[str] = None
     retries_used: int = 0
+    status_code: Optional[int] = None  # HTTP status code (for error diagnosis)
 
 
 class PDFDownloader:
@@ -81,6 +82,7 @@ class PDFDownloader:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
         last_error = None
+        last_status_code = None
         retries_used = 0
         
         for attempt in range(self.max_retries + 1):
@@ -91,6 +93,7 @@ class PDFDownloader:
                 
             except httpx.TimeoutException as e:
                 last_error = f"Timeout: {str(e)}"
+                last_status_code = None
                 logger.warning(
                     "Download timeout",
                     url=url,
@@ -100,6 +103,7 @@ class PDFDownloader:
                 
             except httpx.HTTPStatusError as e:
                 last_error = f"HTTP {e.response.status_code}: {str(e)}"
+                last_status_code = e.response.status_code
                 # Don't retry on client errors (4xx)
                 if 400 <= e.response.status_code < 500:
                     logger.error("Client error, not retrying", url=url, status=e.response.status_code)
@@ -113,6 +117,7 @@ class PDFDownloader:
                 
             except Exception as e:
                 last_error = str(e)
+                last_status_code = None
                 logger.warning(
                     "Download error",
                     url=url,
@@ -126,12 +131,13 @@ class PDFDownloader:
                 logger.info("Retrying download", url=url, delay=delay)
                 time.sleep(delay)
         
-        logger.error("Download failed after all retries", url=url, error=last_error)
+        logger.error("Download failed after all retries", url=url, error=last_error, status_code=last_status_code)
         return DownloadResult(
             success=False,
             url=url,
             error=last_error,
-            retries_used=retries_used
+            retries_used=retries_used,
+            status_code=last_status_code
         )
     
     def _download_attempt(self, url: str, output_path: Path) -> DownloadResult:
@@ -145,8 +151,16 @@ class PDFDownloader:
         Returns:
             DownloadResult with download details
         """
+        # Extract Referer from URL (parent directory) to mimic browser behavior
+        # Many servers check for Referer header to prevent hotlinking
+        referer_url = url.rsplit('/', 1)[0] + '/' if '/' in url else url
+        
+        # Build headers with Referer
+        headers = self.headers.copy()
+        headers["Referer"] = referer_url
+        
         with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
-            with client.stream("GET", url, headers=self.headers) as response:
+            with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
                 
                 content_type = response.headers.get("content-type", "")
@@ -176,7 +190,8 @@ class PDFDownloader:
                     url=url,
                     file_path=output_path,
                     file_size=total_size,
-                    content_type=content_type
+                    content_type=content_type,
+                    status_code=response.status_code
                 )
     
     def download_to_bytes(self, url: str) -> tuple[Optional[bytes], Optional[str]]:
@@ -191,10 +206,15 @@ class PDFDownloader:
         """
         logger.info("Downloading PDF to memory", url=url)
         
+        # Extract Referer from URL (parent directory) to mimic browser behavior
+        referer_url = url.rsplit('/', 1)[0] + '/' if '/' in url else url
+        headers = self.headers.copy()
+        headers["Referer"] = referer_url
+        
         for attempt in range(self.max_retries + 1):
             try:
                 with httpx.Client(timeout=self.timeout, follow_redirects=True) as client:
-                    response = client.get(url, headers=self.headers)
+                    response = client.get(url, headers=headers)
                     response.raise_for_status()
                     
                     logger.info(
@@ -232,15 +252,20 @@ class PDFDownloader:
         """
         logger.debug("Downloading partial PDF", url=url, max_bytes=max_bytes)
         
+        # Extract Referer from URL (parent directory) to mimic browser behavior
+        referer_url = url.rsplit('/', 1)[0] + '/' if '/' in url else url
+        base_headers = self.headers.copy()
+        base_headers["Referer"] = referer_url
+        
         try:
             with httpx.Client(
                 timeout=self.timeout,
                 follow_redirects=True,
-                headers=self.headers
+                headers=base_headers
             ) as client:
                 # Use Range header to download only first chunk
                 range_header = f"bytes=0-{max_bytes - 1}"
-                headers = {**self.headers, "Range": range_header}
+                headers = {**base_headers, "Range": range_header}
                 
                 response = client.get(url, headers=headers)
                 response.raise_for_status()

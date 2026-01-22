@@ -135,7 +135,6 @@ LOG_LEVEL=INFO
 
 ```bash
 python cli.py init
-python cli.py seed  # Add sample court form URLs
 ```
 
 ## Usage
@@ -163,7 +162,7 @@ python main.py
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Then open http://localhost:8000 in your browser.
+The web UI will be available at the configured host and port (default: http://0.0.0.0:8000).
 
 ### API Endpoints
 

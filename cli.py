@@ -22,7 +22,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import structlog
 
@@ -54,8 +54,71 @@ from services.form_matcher import FormMatcher, MatchType
 from services.visual_diff import VisualDiff
 from services.action_recommender import action_recommender
 from services.kendra_indexer import kendra_indexer
+from services.kendra_client import kendra_client
 from fetcher.header_checker import HeaderChecker
 from diffing.quick_hasher import QuickHasher
+
+
+def verify_aws_features() -> List[str]:
+    """
+    Verify all configured AWS features are reachable and working.
+    Run before a monitoring cycle to avoid bad runs when AWS is down.
+
+    Returns:
+        List of error messages. Empty means all checks passed.
+    """
+    errors: List[str] = []
+    aws_configured = (
+        bool(settings.AWS_LAMBDA_SCRAPER_FUNCTION)
+        or settings.KENDRA_INDEXING_ENABLED
+        or (bool(settings.AWS_ACCESS_KEY_ID) and bool(settings.AWS_SECRET_ACCESS_KEY))
+    )
+    if not aws_configured:
+        return []
+
+    import boto3
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    # 1. AWS credentials / connectivity (STS)
+    try:
+        sts_kwargs = {"region_name": settings.AWS_REGION}
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            sts_kwargs["aws_access_key_id"] = settings.AWS_ACCESS_KEY_ID
+            sts_kwargs["aws_secret_access_key"] = settings.AWS_SECRET_ACCESS_KEY
+        sts = boto3.client("sts", **sts_kwargs)
+        sts.get_caller_identity()
+    except (BotoCoreError, ClientError, Exception) as e:
+        errors.append(f"AWS credentials/connectivity failed: {e}")
+        # If we can't reach AWS at all, skip per-service checks to avoid duplicate noise
+        return errors
+
+    # 2. Lambda scraper (if configured)
+    if settings.AWS_LAMBDA_SCRAPER_FUNCTION:
+        try:
+            lambda_kwargs = {"region_name": settings.AWS_REGION}
+            if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+                lambda_kwargs["aws_access_key_id"] = settings.AWS_ACCESS_KEY_ID
+                lambda_kwargs["aws_secret_access_key"] = settings.AWS_SECRET_ACCESS_KEY
+            lam = boto3.client("lambda", **lambda_kwargs)
+            lam.get_function(FunctionName=settings.AWS_LAMBDA_SCRAPER_FUNCTION)
+        except (BotoCoreError, ClientError, Exception) as e:
+            errors.append(f"AWS Lambda scraper not reachable ({settings.AWS_LAMBDA_SCRAPER_FUNCTION}): {e}")
+
+    # 3. Kendra (if indexing enabled)
+    if settings.KENDRA_INDEXING_ENABLED:
+        if not kendra_client.is_available():
+            errors.append(
+                "Kendra indexing is enabled but Kendra client is not available. "
+                "Check AWS credentials and AWS_KENDRA_INDEX_ID."
+            )
+        else:
+            status = kendra_client.get_index_status()
+            if not status.get("available"):
+                errors.append(
+                    f"Kendra index not available: {status.get('error', 'Unknown error')}"
+                )
+
+    return errors
 
 
 class MonitoringOrchestrator:
@@ -1096,6 +1159,16 @@ def cmd_run(url_id: Optional[int] = None, max_workers: Optional[int] = None):
     logger.info("Running monitoring cycle", url_id=url_id, max_workers=max_workers)
     settings.ensure_directories()
     run_migrations()
+
+    # Ensure all configured AWS features are working before starting
+    aws_errors = verify_aws_features()
+    if aws_errors:
+        logger.error("AWS feature checks failed; aborting monitoring cycle", errors=aws_errors)
+        print("\n❌ AWS feature checks failed. Fix before running a monitoring cycle:\n")
+        for msg in aws_errors:
+            print(f"  • {msg}")
+        print("\nRe-run after AWS is working.")
+        sys.exit(1)
     
     # Validate settings
     issues = settings.validate()

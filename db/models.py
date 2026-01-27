@@ -97,6 +97,41 @@ class PDFVersion(Base):
     kendra_indexed_at = Column(DateTime, nullable=True)  # Timestamp of indexing
     kendra_index_status = Column(String(50), nullable=True)  # pending, indexed, failed
     
+    # ==========================================================================
+    # AWS IDP Enrichment Fields (Additive - all optional)
+    # Comprehend, Textract Forms/Queries, A2I enrichment data
+    # ==========================================================================
+    
+    # Comprehend Classification (document type)
+    comprehend_document_type = Column(String(100), nullable=True)  # e.g., motion, petition, order
+    comprehend_document_type_confidence = Column(Float, nullable=True)  # Confidence score 0.0-1.0
+    
+    # Comprehend NER (extracted entities as JSON)
+    comprehend_entities = Column(JSON, nullable=True)  # {"dates": [...], "organizations": [...], etc.}
+    
+    # Textract Forms (key-value pairs)
+    textract_form_kv_pairs = Column(JSON, nullable=True)  # {"Form Number": "CIV-001", "Revision Date": "01/2024", ...}
+    textract_form_confidence = Column(Float, nullable=True)  # Average confidence for form extraction
+    
+    # Textract Tables (extracted table structure)
+    textract_tables = Column(JSON, nullable=True)  # [{"page": 1, "rows": [...], "columns": [...]}, ...]
+    
+    # Textract Queries (targeted Q&A results)
+    textract_queries_results = Column(JSON, nullable=True)  # {"What is the form number?": {"answer": "CIV-001", "confidence": 0.95}, ...}
+    
+    # Textract Signature Detection
+    textract_signatures = Column(JSON, nullable=True)  # [{"page": 1, "bbox": {...}, "confidence": 0.92}, ...]
+    
+    # IDP Enrichment Status
+    idp_enrichment_status = Column(String(50), nullable=True)  # pending, processing, completed, failed, skipped
+    idp_enrichment_at = Column(DateTime, nullable=True)  # When enrichment was processed
+    idp_enrichment_error = Column(Text, nullable=True)  # Error message if failed
+    
+    # A2I Human Review (if sent for human review)
+    a2i_human_loop_arn = Column(String(512), nullable=True)  # ARN of A2I human loop if created
+    a2i_human_loop_status = Column(String(50), nullable=True)  # pending, in_progress, completed, stopped
+    a2i_human_loop_output = Column(JSON, nullable=True)  # Human review output data
+    
     # Timestamps
     fetched_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)

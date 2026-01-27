@@ -66,16 +66,18 @@ class AWSWebScraper:
         self.lambda_function_name = lambda_function_name or settings.AWS_LAMBDA_SCRAPER_FUNCTION
         self.aws_region = aws_region or settings.AWS_REGION
         
-        # Initialize boto3 Lambda client if AWS credentials are available
+        # Initialize boto3 Lambda client using default credential chain
+        # (env vars -> ~/.aws/credentials from 'aws configure' -> IAM role)
         self.lambda_client = None
-        if self.lambda_function_name and self._has_aws_credentials():
+        if self.lambda_function_name:
             try:
-                self.lambda_client = boto3.client(
-                    'lambda',
-                    region_name=self.aws_region,
-                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID or None,
-                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY or None
-                )
+                # Use explicit credentials if provided, otherwise boto3 uses default chain
+                client_kwargs = {'region_name': self.aws_region}
+                if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+                    client_kwargs['aws_access_key_id'] = settings.AWS_ACCESS_KEY_ID
+                    client_kwargs['aws_secret_access_key'] = settings.AWS_SECRET_ACCESS_KEY
+                
+                self.lambda_client = boto3.client('lambda', **client_kwargs)
                 logger.info(
                     "AWS Lambda client initialized",
                     function_name=self.lambda_function_name,
@@ -100,8 +102,17 @@ class AWSWebScraper:
         logger.info("AWSWebScraper initialized", use_lambda=self.lambda_client is not None)
     
     def _has_aws_credentials(self) -> bool:
-        """Check if AWS credentials are available."""
-        return bool(settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY)
+        """Check if AWS credentials are available (explicit or via default chain)."""
+        # Check explicit credentials first
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            return True
+        # Otherwise, check if default credential chain has credentials
+        try:
+            session = boto3.Session(region_name=self.aws_region)
+            credentials = session.get_credentials()
+            return credentials is not None
+        except Exception:
+            return False
     
     def scrape_url(self, url: str) -> ScrapeResult:
         """

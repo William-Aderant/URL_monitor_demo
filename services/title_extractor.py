@@ -20,6 +20,8 @@ import boto3
 import structlog
 from PIL import Image
 
+from config import settings
+
 logger = structlog.get_logger()
 
 
@@ -63,20 +65,27 @@ class TitleExtractor:
         Args:
             aws_region: AWS region for services. Defaults to AWS_REGION env var or us-east-1.
         """
-        self.aws_region = aws_region or os.getenv("AWS_REGION", "us-east-1")
+        self.aws_region = aws_region or settings.AWS_REGION
         self._textract_client = None
         self._bedrock_client = None
         
         logger.info("TitleExtractor initialized", region=self.aws_region)
     
     def _get_aws_session(self):
-        """Get AWS session with credentials from environment."""
-        return boto3.Session(
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            aws_session_token=os.getenv("AWS_SESSION_TOKEN"),
-            region_name=self.aws_region
-        )
+        """Get AWS session with credentials from settings or default credential chain."""
+        session_kwargs = {'region_name': self.aws_region}
+        
+        # Only use explicit credentials if they're set in settings
+        if (settings.AWS_ACCESS_KEY_ID and settings.AWS_ACCESS_KEY_ID.strip() and 
+            settings.AWS_SECRET_ACCESS_KEY and settings.AWS_SECRET_ACCESS_KEY.strip()):
+            session_kwargs['aws_access_key_id'] = settings.AWS_ACCESS_KEY_ID
+            session_kwargs['aws_secret_access_key'] = settings.AWS_SECRET_ACCESS_KEY
+            # Also check for session token (for temporary credentials)
+            if os.getenv("AWS_SESSION_TOKEN"):
+                session_kwargs['aws_session_token'] = os.getenv("AWS_SESSION_TOKEN")
+        # Otherwise, boto3 will use default credential chain (SSO, IAM role, etc.)
+        
+        return boto3.Session(**session_kwargs)
     
     @property
     def textract_client(self):
@@ -95,11 +104,26 @@ class TitleExtractor:
         return self._bedrock_client
     
     def is_available(self) -> bool:
-        """Check if AWS credentials are configured."""
-        return bool(
-            os.getenv("AWS_ACCESS_KEY_ID") and 
-            os.getenv("AWS_SECRET_ACCESS_KEY")
-        )
+        """
+        Check if AWS credentials are available.
+        Returns True if explicit credentials are set OR if default credential chain is available.
+        """
+        # If explicit credentials are set in settings, use them
+        if (settings.AWS_ACCESS_KEY_ID and settings.AWS_ACCESS_KEY_ID.strip() and 
+            settings.AWS_SECRET_ACCESS_KEY and settings.AWS_SECRET_ACCESS_KEY.strip()):
+            return True
+        
+        # Otherwise, check if default credential chain is available
+        # boto3 will automatically use SSO, IAM roles, etc. if configured
+        try:
+            # Try to create a session to verify credentials are available
+            test_session = boto3.Session(region_name=self.aws_region)
+            # Try to get credentials (this will use default chain if no explicit creds)
+            credentials = test_session.get_credentials()
+            return credentials is not None
+        except Exception:
+            # If we can't get credentials, return False
+            return False
     
     def convert_pdf_to_image(self, pdf_path: Path, output_path: Optional[Path] = None) -> Optional[bytes]:
         """

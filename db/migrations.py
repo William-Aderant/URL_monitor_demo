@@ -232,6 +232,62 @@ def migrate_kendra_columns() -> None:
         logger.info("Kendra columns migrated")
 
 
+def migrate_idp_enrichment_columns() -> None:
+    """
+    Add AWS IDP enrichment columns to pdf_versions table.
+    Implements additive Comprehend, Textract Forms/Queries, and A2I features.
+    All columns are optional and do not affect existing functionality.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "pdf_versions" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("pdf_versions")]
+    
+    # New columns for IDP enrichment (all optional)
+    new_columns = [
+        # Comprehend Classification
+        ("comprehend_document_type", "VARCHAR(100)"),
+        ("comprehend_document_type_confidence", "FLOAT"),
+        
+        # Comprehend NER (entities as JSON)
+        ("comprehend_entities", "JSON"),
+        
+        # Textract Forms (key-value pairs)
+        ("textract_form_kv_pairs", "JSON"),
+        ("textract_form_confidence", "FLOAT"),
+        
+        # Textract Tables
+        ("textract_tables", "JSON"),
+        
+        # Textract Queries
+        ("textract_queries_results", "JSON"),
+        
+        # Textract Signatures
+        ("textract_signatures", "JSON"),
+        
+        # IDP Enrichment Status
+        ("idp_enrichment_status", "VARCHAR(50)"),
+        ("idp_enrichment_at", "DATETIME"),
+        ("idp_enrichment_error", "TEXT"),
+        
+        # A2I Human Review
+        ("a2i_human_loop_arn", "VARCHAR(512)"),
+        ("a2i_human_loop_status", "VARCHAR(50)"),
+        ("a2i_human_loop_output", "JSON"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding IDP enrichment column {col_name} to pdf_versions")
+                conn.execute(text(f"ALTER TABLE pdf_versions ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+        logger.info("IDP enrichment columns migrated")
+
+
 def run_migrations() -> None:
     """
     Run database migrations.
@@ -256,6 +312,8 @@ def run_migrations() -> None:
         migrate_fast_detection_columns()
         migrate_state_domain_columns()
         migrate_kendra_columns()
+        # AWS IDP enrichment columns (additive)
+        migrate_idp_enrichment_columns()
 
 
 def seed_sample_urls(db_session) -> None:

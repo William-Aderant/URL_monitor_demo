@@ -350,9 +350,49 @@
     
     .diff-image {
         max-width: 100%;
+        max-height: 70vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
         border: 2px solid #ffd700;
         border-radius: 8px;
         box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    
+    .diff-image.side-by-side {
+        max-height: 75vh;
+    }
+    
+    .diff-view-controls {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .diff-view-toggle {
+        padding: 8px 16px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    
+    .diff-view-toggle:hover {
+        background: var(--bg-tertiary);
+    }
+    
+    .diff-view-toggle.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
     }
     
     .diff-legend {
@@ -384,6 +424,16 @@
     <div class="diff-modal-content">
         <button class="diff-modal-close" onclick="closeDiffViewer()">×</button>
         <h2 style="margin-bottom: 16px;">🔍 Visual Diff - Changes Highlighted</h2>
+        
+        <!-- View Toggle Controls -->
+        <div class="diff-view-controls">
+            <button id="diffViewOverlay" class="diff-view-toggle active" onclick="switchDiffView('overlay')">
+                📊 Overlay View
+            </button>
+            <button id="diffViewSideBySide" class="diff-view-toggle" onclick="switchDiffView('side-by-side')">
+                ↔️ Side-by-Side
+            </button>
+        </div>
         
         <!-- Page Navigation -->
         <div id="diffPageNavigation" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
@@ -458,7 +508,8 @@ let diffViewerState = {
     versionId: null,
     currentPage: 0,
     totalPages: 1,
-    affectedPages: []
+    affectedPages: [],
+    viewMode: 'overlay'  // 'overlay' or 'side-by-side'
 };
 
 async function showDiffViewer(urlId, versionId) {
@@ -475,6 +526,11 @@ async function showDiffViewer(urlId, versionId) {
     diffViewerState.urlId = urlId;
     diffViewerState.versionId = versionId;
     diffViewerState.currentPage = 0;
+    diffViewerState.viewMode = 'overlay';
+    
+    // Reset view toggle buttons
+    document.getElementById('diffViewOverlay').classList.add('active');
+    document.getElementById('diffViewSideBySide').classList.remove('active');
     
     // Show loading
     diffLoading.style.display = 'block';
@@ -530,9 +586,17 @@ async function loadDiffPage(pageNum) {
     document.getElementById('diffCurrentPage').textContent = pageNum + 1;
     updatePageNavigation();
     
-    // Load diff image for this page
-    const imageUrl = `/api/urls/${diffViewerState.urlId}/versions/${diffViewerState.versionId}/diff-preview?page=${pageNum}`;
+    // Load diff image for this page based on current view mode
+    const viewParam = diffViewerState.viewMode === 'side-by-side' ? '&view=side-by-side' : '';
+    const imageUrl = `/api/urls/${diffViewerState.urlId}/versions/${diffViewerState.versionId}/diff-preview?page=${pageNum}${viewParam}`;
     diffImage.src = imageUrl;
+    
+    // Update image class based on view mode
+    if (diffViewerState.viewMode === 'side-by-side') {
+        diffImage.classList.add('side-by-side');
+    } else {
+        diffImage.classList.remove('side-by-side');
+    }
     
     diffImage.onload = function() {
         diffLoading.style.display = 'none';
@@ -542,6 +606,21 @@ async function loadDiffPage(pageNum) {
     diffImage.onerror = function() {
         diffLoading.innerHTML = `❌ Failed to load diff image for page ${pageNum + 1}.`;
     };
+}
+
+function switchDiffView(mode) {
+    if (diffViewerState.viewMode === mode) {
+        return; // Already in this mode
+    }
+    
+    diffViewerState.viewMode = mode;
+    
+    // Update button states
+    document.getElementById('diffViewOverlay').classList.toggle('active', mode === 'overlay');
+    document.getElementById('diffViewSideBySide').classList.toggle('active', mode === 'side-by-side');
+    
+    // Reload current page with new view mode
+    loadDiffPage(diffViewerState.currentPage);
 }
 
 function changeDiffPage(delta) {

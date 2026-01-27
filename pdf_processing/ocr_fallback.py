@@ -65,15 +65,17 @@ class OCRFallback:
     
     @property
     def client(self):
-        """Lazy-load Textract client."""
+        """Lazy-load Textract client using default credential chain."""
         if self._client is None:
             try:
-                self._client = boto3.client(
-                    'textract',
-                    aws_access_key_id=self.aws_access_key,
-                    aws_secret_access_key=self.aws_secret_key,
-                    region_name=self.aws_region
-                )
+                # Use explicit credentials if provided, otherwise boto3 uses default chain
+                # (env vars -> ~/.aws/credentials -> IAM role)
+                client_kwargs = {'region_name': self.aws_region}
+                if self.aws_access_key and self.aws_secret_key:
+                    client_kwargs['aws_access_key_id'] = self.aws_access_key
+                    client_kwargs['aws_secret_access_key'] = self.aws_secret_key
+                
+                self._client = boto3.client('textract', **client_kwargs)
             except Exception as e:
                 logger.error("Failed to create Textract client", error=str(e))
                 raise
@@ -81,7 +83,7 @@ class OCRFallback:
     
     def is_available(self) -> bool:
         """
-        Check if OCR is available (AWS credentials configured).
+        Check if OCR is available (AWS credentials configured via env or aws configure).
         
         Returns:
             True if Textract is available
@@ -89,19 +91,14 @@ class OCRFallback:
         if self._available is not None:
             return self._available
         
-        if not self.aws_access_key or not self.aws_secret_key:
-            logger.warning("AWS credentials not configured, OCR unavailable")
-            self._available = False
-            return False
-        
         try:
-            # Try to make a simple API call to verify credentials
+            # Try to create client - boto3 will use default credential chain
             self.client
             self._available = True
             logger.info("OCR (Textract) is available")
             return True
         except NoCredentialsError:
-            logger.warning("AWS credentials invalid, OCR unavailable")
+            logger.warning("AWS credentials not found (check 'aws configure' or env vars), OCR unavailable")
             self._available = False
             return False
         except Exception as e:

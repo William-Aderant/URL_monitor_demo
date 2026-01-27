@@ -769,6 +769,7 @@ async def get_diff_preview(
     url_id: int,
     version_id: int,
     page: int = 0,
+    view: str = "overlay",
     db: Session = Depends(get_db)
 ):
     """
@@ -779,13 +780,30 @@ async def get_diff_preview(
         url_id: Monitored URL ID
         version_id: Version ID
         page: Page number (0-indexed). Defaults to 0 (first page).
+        view: View mode - "overlay" (default) or "side-by-side"
     """
     # Validate page number
     if page < 0:
         raise HTTPException(status_code=400, detail="Page number must be >= 0")
     
-    # First try to get existing diff image for this page
-    diff_path = file_store.get_diff_image(url_id, version_id, page)
+    # Validate view parameter
+    if view not in ["overlay", "side-by-side"]:
+        raise HTTPException(status_code=400, detail="View must be 'overlay' or 'side-by-side'")
+    
+    # Determine which file store method to use based on view mode
+    if view == "side-by-side":
+        # For side-by-side, construct path similar to diff image but with sidebyside suffix
+        version_dir = file_store.get_version_dir(url_id, version_id)
+        if page == 0:
+            diff_path = version_dir / "diff_sidebyside.png"
+        else:
+            diff_path = version_dir / f"diff_sidebyside_page_{page}.png"
+        # Check if it exists
+        if not diff_path.exists():
+            diff_path = None
+    else:
+        # First try to get existing diff image for this page
+        diff_path = file_store.get_diff_image(url_id, version_id, page)
     
     if diff_path and diff_path.exists():
         return FileResponse(
@@ -830,13 +848,29 @@ async def get_diff_preview(
         from services.visual_diff import VisualDiff
         differ = VisualDiff()
         
-        diff_output = file_store.get_diff_image_path(url_id, version_id, page)
-        result = differ.generate_diff(
-            old_pdf_path=prev_pdf,
-            new_pdf_path=curr_pdf,
-            output_path=diff_output,
-            page_num=page
-        )
+        if view == "side-by-side":
+            # Generate side-by-side comparison
+            # Construct the output path
+            version_dir = file_store.get_version_dir(url_id, version_id)
+            if page == 0:
+                diff_output = version_dir / "diff_sidebyside.png"
+            else:
+                diff_output = version_dir / f"diff_sidebyside_page_{page}.png"
+            result = differ.generate_side_by_side(
+                old_pdf_path=prev_pdf,
+                new_pdf_path=curr_pdf,
+                output_path=diff_output,
+                page_num=page
+            )
+        else:
+            # Generate overlay diff
+            diff_output = file_store.get_diff_image_path(url_id, version_id, page)
+            result = differ.generate_diff(
+                old_pdf_path=prev_pdf,
+                new_pdf_path=curr_pdf,
+                output_path=diff_output,
+                page_num=page
+            )
         
         if result.success and result.diff_image_path.exists():
             return FileResponse(

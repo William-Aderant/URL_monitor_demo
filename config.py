@@ -14,7 +14,11 @@ load_dotenv()
 class Settings:
     """Application settings loaded from environment."""
     
-    # AWS
+    # AWS - Credentials are optional here; boto3 uses the default credential chain:
+    # 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    # 2. Shared credentials file (~/.aws/credentials from 'aws configure')
+    # 3. IAM role (for EC2/Lambda)
+    # If these are empty, boto3 will automatically use credentials from 'aws configure'
     AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
@@ -25,6 +29,47 @@ class Settings:
     AWS_KENDRA_DATA_SOURCE_ID: str = os.getenv("AWS_KENDRA_DATA_SOURCE_ID", "")
     KENDRA_INDEXING_ENABLED: bool = os.getenv("KENDRA_INDEXING_ENABLED", "False").lower() == "true"
     KENDRA_SEARCH_ENABLED: bool = os.getenv("KENDRA_SEARCH_ENABLED", "False").lower() == "true"
+    
+    # ==========================================================================
+    # AWS IDP Features (Additive - opt-in via feature flags)
+    # Comprehend, Textract Forms/Queries, A2I enrichment
+    # ==========================================================================
+    
+    # Amazon Comprehend Settings
+    COMPREHEND_ENABLED: bool = os.getenv("COMPREHEND_ENABLED", "False").lower() == "true"
+    COMPREHEND_CLASSIFICATION_ENABLED: bool = os.getenv("COMPREHEND_CLASSIFICATION_ENABLED", "False").lower() == "true"
+    COMPREHEND_NER_ENABLED: bool = os.getenv("COMPREHEND_NER_ENABLED", "False").lower() == "true"
+    # Custom classifier endpoint ARN (optional - uses built-in if not set)
+    COMPREHEND_CLASSIFIER_ARN: str = os.getenv("COMPREHEND_CLASSIFIER_ARN", "")
+    # Custom entity recognizer endpoint ARN (optional)
+    COMPREHEND_ENTITY_RECOGNIZER_ARN: str = os.getenv("COMPREHEND_ENTITY_RECOGNIZER_ARN", "")
+    
+    # Amazon Textract Advanced Features (beyond current OCR)
+    TEXTRACT_FORMS_ENABLED: bool = os.getenv("TEXTRACT_FORMS_ENABLED", "False").lower() == "true"
+    TEXTRACT_TABLES_ENABLED: bool = os.getenv("TEXTRACT_TABLES_ENABLED", "False").lower() == "true"
+    TEXTRACT_QUERIES_ENABLED: bool = os.getenv("TEXTRACT_QUERIES_ENABLED", "False").lower() == "true"
+    TEXTRACT_SIGNATURES_ENABLED: bool = os.getenv("TEXTRACT_SIGNATURES_ENABLED", "False").lower() == "true"
+    # Default queries for Textract Queries API
+    TEXTRACT_DEFAULT_QUERIES: str = os.getenv(
+        "TEXTRACT_DEFAULT_QUERIES",
+        "What is the form number?;What is the revision date?;What is the title?"
+    )
+    
+    # Amazon A2I (Augmented AI) for human-in-the-loop review
+    A2I_ENABLED: bool = os.getenv("A2I_ENABLED", "False").lower() == "true"
+    A2I_FLOW_DEFINITION_ARN: str = os.getenv("A2I_FLOW_DEFINITION_ARN", "")
+    A2I_WORKTEAM_ARN: str = os.getenv("A2I_WORKTEAM_ARN", "")
+    # Confidence threshold below which items are sent to A2I
+    A2I_CONFIDENCE_THRESHOLD: float = float(os.getenv("A2I_CONFIDENCE_THRESHOLD", "0.70"))
+    
+    # Lambda Enrichment Pipeline
+    LAMBDA_ENRICHMENT_ENABLED: bool = os.getenv("LAMBDA_ENRICHMENT_ENABLED", "False").lower() == "true"
+    AWS_LAMBDA_ENRICHMENT_FUNCTION: str = os.getenv("AWS_LAMBDA_ENRICHMENT_FUNCTION", "")
+    # S3 bucket for enrichment pipeline (optional)
+    ENRICHMENT_S3_BUCKET: str = os.getenv("ENRICHMENT_S3_BUCKET", "")
+    
+    # IDP Enrichment general settings
+    IDP_ENRICHMENT_ASYNC: bool = os.getenv("IDP_ENRICHMENT_ASYNC", "True").lower() == "true"
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///data/url_monitor.db")
@@ -88,23 +133,23 @@ class Settings:
         """Validate required settings. Returns list of missing/invalid settings."""
         issues = []
         
-        # AWS credentials are optional (only needed for Lambda scraper or OCR fallback)
-        # but warn if partially configured
+        # AWS credentials: If env vars are partially set, warn.
+        # Otherwise, boto3 will use the default credential chain (aws configure, IAM role, etc.)
         aws_vars = [cls.AWS_ACCESS_KEY_ID, cls.AWS_SECRET_ACCESS_KEY]
         if any(aws_vars) and not all(aws_vars):
-            issues.append("AWS credentials partially configured - need both ACCESS_KEY_ID and SECRET_ACCESS_KEY")
-        
-        # AWS Lambda function name is optional (will fall back to direct HTTP if not set)
-        if cls.AWS_LAMBDA_SCRAPER_FUNCTION and not all(aws_vars):
-            issues.append("AWS_LAMBDA_SCRAPER_FUNCTION is set but AWS credentials are missing")
+            issues.append("AWS credentials partially configured in env - need both ACCESS_KEY_ID and SECRET_ACCESS_KEY, or remove both to use 'aws configure' credentials")
         
         # Kendra index ID is required if Kendra features are enabled
         if (cls.KENDRA_INDEXING_ENABLED or cls.KENDRA_SEARCH_ENABLED) and not cls.AWS_KENDRA_INDEX_ID:
             issues.append("KENDRA_INDEXING_ENABLED or KENDRA_SEARCH_ENABLED is True but AWS_KENDRA_INDEX_ID is not set")
         
-        # Kendra requires AWS credentials
-        if (cls.KENDRA_INDEXING_ENABLED or cls.KENDRA_SEARCH_ENABLED) and not all(aws_vars):
-            issues.append("Kendra features enabled but AWS credentials are missing")
+        # A2I requires flow definition ARN
+        if cls.A2I_ENABLED and not cls.A2I_FLOW_DEFINITION_ARN:
+            issues.append("A2I_ENABLED is True but A2I_FLOW_DEFINITION_ARN is not set")
+        
+        # Lambda enrichment requires function name
+        if cls.LAMBDA_ENRICHMENT_ENABLED and not cls.AWS_LAMBDA_ENRICHMENT_FUNCTION:
+            issues.append("LAMBDA_ENRICHMENT_ENABLED is True but AWS_LAMBDA_ENRICHMENT_FUNCTION is not set")
         
         return issues
 

@@ -636,105 +636,58 @@ class MonitoringOrchestrator:
                         ocr_used=ocr_used
                     )
                     
-                    # Step 6b: Extract title using AWS Textract + Bedrock (only if change detected)
-                    if change_result.changed and self.title_extractor.is_available():
-                        logger.info("Extracting title with Textract + Bedrock")
-                        preview_path = self.version_manager.file_store.get_preview_image_path(
-                            monitored_url.id, new_version.id
-                        )
-                        title_result = self.title_extractor.extract_title(
-                            original_pdf, 
-                            preview_path
-                        )
-                        
-                        if title_result.success:
-                            new_version.formatted_title = title_result.formatted_title
-                            new_version.form_number = title_result.form_number
-                            new_version.title_confidence = title_result.combined_confidence
-                            new_version.title_extraction_method = title_result.extraction_method
-                            new_version.revision_date = title_result.revision_date
-                            db.commit()
-                            
-                            logger.info(
-                                "Title extracted",
-                                title=title_result.formatted_title,
-                                form_number=title_result.form_number,
-                                revision_date=title_result.revision_date,
-                                confidence=title_result.combined_confidence
-                            )
-                            
-                            # Re-run form matching now that we have the new title
-                            # This is important because title matching takes priority over form number/similarity
-                            if previous_version:
-                                updated_match = self.form_matcher.match_forms(
-                                    old_text=previous_text,
-                                    new_text=extracted_text,
-                                    old_form_number=previous_version.form_number,
-                                    new_form_number=title_result.form_number,
-                                    old_title=previous_version.formatted_title,
-                                    new_title=title_result.formatted_title
-                                )
-                                # Update match_result with the new classification
-                                match_result = updated_match
-                                logger.info(
-                                    "Updated form match with titles",
-                                    match_type=match_result.match_type.value,
-                                    old_title=previous_version.formatted_title,
-                                    new_title=title_result.formatted_title
-                                )
-                                
-                                # #region agent log
-                                try:
-                                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Form match after title extraction","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":title_result.formatted_title,"form_numbers_match":previous_version.form_number == title_result.form_number},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                                except: pass
-                                # #endregion
-                                
-                                # Fix: Update change_type to "title_changed" if form numbers match and only title changed
-                                if (match_result.match_type.value == "similarity_match" and 
-                                    previous_version.form_number == title_result.form_number and
-                                    match_result.title_old != match_result.title_new):
-                                    # This is a title change - update change_type
-                                    change_result.change_type = "title_changed"
-                                    logger.info(
-                                        "Change type updated to title_changed",
-                                        old_title=previous_version.formatted_title,
-                                        new_title=title_result.formatted_title
-                                    )
-                                    # #region agent log
-                                    try:
-                                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Change type updated to title_changed","data":{"url_id":monitored_url.id,"old_change_type":"text_changed","new_change_type":"title_changed"},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                                    except: pass
-                                    # #endregion
-                        else:
-                            logger.warning(
-                                "Title extraction failed",
-                                error=title_result.error
-                            )
-                    else:
-                        logger.info("AWS credentials not configured, skipping title extraction")
-                    
-                    # Step 6c: Generate visual diff if we have a previous version (only if change detected)
+                    # Step 6b+6c: Run BDA title extraction and visual diff in PARALLEL for speed
+                    # Both are I/O bound and don't depend on each other
+                    title_result = None
                     diff_image_path = None
-                    if change_result.changed and previous_version:
-                        logger.info("Generating visual diff")
-                        
-                        # Get paths to previous version PDFs (use original PDFs)
+                    
+                    # Determine what work needs to be done
+                    run_bda = (
+                        change_result.changed and 
+                        self.title_extractor.is_available() and
+                        not (settings.BDA_SKIP_FIRST_VERSION and not previous_version)
+                    )
+                    run_visual_diff = change_result.changed and previous_version
+                    
+                    # Get paths needed for both operations
+                    preview_path = self.version_manager.file_store.get_preview_image_path(
+                        monitored_url.id, new_version.id
+                    ) if run_bda else None
+                    
+                    prev_original = None
+                    diff_output = None
+                    if run_visual_diff:
                         prev_original = self.version_manager.file_store.get_original_pdf(
                             monitored_url.id, previous_version.id
                         )
-                        
                         if prev_original:
                             diff_output = self.version_manager.file_store.get_diff_image_path(
                                 monitored_url.id, new_version.id
                             )
-                            
-                            diff_result = self.visual_diff.generate_diff(
+                        else:
+                            run_visual_diff = False
+                    
+                    # Run BDA and visual diff in parallel if both are needed
+                    if run_bda and run_visual_diff:
+                        logger.info("Running BDA and visual diff in parallel")
+                        from concurrent.futures import ThreadPoolExecutor, wait
+                        
+                        def _run_bda():
+                            return self.title_extractor.extract_title(original_pdf, preview_path)
+                        
+                        def _run_diff():
+                            return self.visual_diff.generate_diff(
                                 old_pdf_path=prev_original,
                                 new_pdf_path=original_pdf,
                                 output_path=diff_output
                             )
+                        
+                        with ThreadPoolExecutor(max_workers=2) as executor:
+                            bda_future = executor.submit(_run_bda)
+                            diff_future = executor.submit(_run_diff)
+                            wait([bda_future, diff_future])
+                            title_result = bda_future.result()
+                            diff_result = diff_future.result()
                             
                             if diff_result.success:
                                 diff_image_path = str(diff_result.diff_image_path)
@@ -744,10 +697,104 @@ class MonitoringOrchestrator:
                                     regions=len(diff_result.changed_regions or [])
                                 )
                             else:
-                                logger.warning(
-                                    "Visual diff generation failed",
-                                    error=diff_result.error
+                                logger.warning("Visual diff generation failed", error=diff_result.error)
+                    
+                    elif run_bda:
+                        # Only BDA (first version or no previous)
+                        logger.info("Extracting title (BDA)")
+                        title_result = self.title_extractor.extract_title(original_pdf, preview_path)
+                    
+                    elif run_visual_diff:
+                        # Only visual diff (BDA not available)
+                        logger.info("Generating visual diff")
+                        diff_result = self.visual_diff.generate_diff(
+                            old_pdf_path=prev_original,
+                            new_pdf_path=original_pdf,
+                            output_path=diff_output
+                        )
+                        if diff_result.success:
+                            diff_image_path = str(diff_result.diff_image_path)
+                            logger.info(
+                                "Visual diff generated",
+                                change_pct=f"{diff_result.change_percentage:.1%}",
+                                regions=len(diff_result.changed_regions or [])
+                            )
+                        else:
+                            logger.warning("Visual diff generation failed", error=diff_result.error)
+                    else:
+                        if not self.title_extractor.is_available():
+                            logger.info("AWS credentials not configured, skipping title extraction")
+                        elif settings.BDA_SKIP_FIRST_VERSION and not previous_version:
+                            logger.info("Skipping BDA for first version (BDA_SKIP_FIRST_VERSION=True)")
+                    
+                    # Process BDA result if we ran it
+                    if title_result and title_result.success:
+                        new_version.formatted_title = title_result.formatted_title
+                        new_version.form_number = title_result.form_number
+                        new_version.title_confidence = title_result.combined_confidence
+                        new_version.title_extraction_method = title_result.extraction_method
+                        new_version.revision_date = title_result.revision_date
+                        # Replace URL display name with BDA-extracted title
+                        if title_result.formatted_title:
+                            bda_display = (
+                                f"{title_result.formatted_title} {{{title_result.form_number}}}"
+                                if title_result.form_number
+                                else title_result.formatted_title
+                            )
+                            monitored_url.name = bda_display[:255]
+                        db.commit()
+                        
+                        logger.info(
+                            "Title extracted",
+                            title=title_result.formatted_title,
+                            form_number=title_result.form_number,
+                            revision_date=title_result.revision_date,
+                            confidence=title_result.combined_confidence
+                        )
+                        
+                        # Re-run form matching now that we have the new title
+                        if previous_version:
+                            updated_match = self.form_matcher.match_forms(
+                                old_text=previous_text,
+                                new_text=extracted_text,
+                                old_form_number=previous_version.form_number,
+                                new_form_number=title_result.form_number,
+                                old_title=previous_version.formatted_title,
+                                new_title=title_result.formatted_title
+                            )
+                            match_result = updated_match
+                            logger.info(
+                                "Updated form match with titles",
+                                match_type=match_result.match_type.value,
+                                old_title=previous_version.formatted_title,
+                                new_title=title_result.formatted_title
+                            )
+                            
+                            # #region agent log
+                            try:
+                                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Form match after title extraction","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":title_result.formatted_title,"form_numbers_match":previous_version.form_number == title_result.form_number},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                            except: pass
+                            # #endregion
+                            
+                            # Update change_type to "title_changed" if form numbers match and only title changed
+                            if (match_result.match_type.value == "similarity_match" and 
+                                previous_version.form_number == title_result.form_number and
+                                match_result.title_old != match_result.title_new):
+                                change_result.change_type = "title_changed"
+                                logger.info(
+                                    "Change type updated to title_changed",
+                                    old_title=previous_version.formatted_title,
+                                    new_title=title_result.formatted_title
                                 )
+                                # #region agent log
+                                try:
+                                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
+                                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Change type updated to title_changed","data":{"url_id":monitored_url.id,"old_change_type":"text_changed","new_change_type":"title_changed"},"timestamp":int(__import__('time').time()*1000)})+'\n')
+                                except: pass
+                                # #endregion
+                    elif title_result:
+                        logger.warning("Title extraction failed", error=title_result.error)
                     
                     # If URL relocated but content unchanged, create a special change result
                     if relocated_from_url and not change_result.changed:

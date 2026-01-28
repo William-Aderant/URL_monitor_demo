@@ -71,6 +71,48 @@ class Settings:
     # IDP Enrichment general settings
     IDP_ENRICHMENT_ASYNC: bool = os.getenv("IDP_ENRICHMENT_ASYNC", "True").lower() == "true"
     
+    # ==========================================================================
+    # AWS Bedrock Data Automation (BDA)
+    # Title/form extraction via BDA
+    # ==========================================================================
+    
+    # Enable BDA for title extraction
+    BDA_ENABLED: bool = os.getenv("BDA_ENABLED", "False").lower() == "true"
+    
+    # S3 bucket for BDA input/output (required if BDA_ENABLED=True)
+    BDA_S3_BUCKET: str = os.getenv("BDA_S3_BUCKET", "")
+    
+    # S3 prefix for uploading PDFs to BDA
+    BDA_S3_PREFIX: str = os.getenv("BDA_S3_PREFIX", "pdf-monitor/bda-input/")
+    
+    # S3 prefix for BDA output results
+    BDA_OUTPUT_PREFIX: str = os.getenv("BDA_OUTPUT_PREFIX", "pdf-monitor/bda-output/")
+    
+    # Pre-created BDA project ARN (optional - auto-creates if not set)
+    BDA_PROJECT_ARN: str = os.getenv("BDA_PROJECT_ARN", "")
+    
+    # BDA profile ARN (required for invoke_data_automation_async)
+    # Format: arn:aws:bedrock:{region}:aws:data-automation-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    BDA_PROFILE_ARN: str = os.getenv("BDA_PROFILE_ARN", "")
+    
+    # Timeout for BDA processing in seconds (default: 60, reduced from 120 for faster failure detection)
+    BDA_TIMEOUT_SECONDS: int = int(os.getenv("BDA_TIMEOUT_SECONDS", "60"))
+    
+    # Initial poll interval for checking BDA job status in seconds (default: 0.5, uses adaptive backoff)
+    BDA_POLL_INTERVAL: float = float(os.getenv("BDA_POLL_INTERVAL", "0.5"))
+    
+    # Skip BDA title extraction for first versions (default: False)
+    # First versions have no comparison baseline, so title extraction may be less critical
+    BDA_SKIP_FIRST_VERSION: bool = os.getenv("BDA_SKIP_FIRST_VERSION", "False").lower() == "true"
+    
+    # Use S3 as source for original PDFs when the app needs the file (visual diff, API, etc.)
+    # When True, get_original_pdf_path will fetch from S3 (same prefix as upload_pdfs_to_s3).
+    # Change detection uses stored hashes/text; this setting affects only when the actual PDF file is needed.
+    BDA_USE_S3_ORIGINALS: bool = os.getenv("BDA_USE_S3_ORIGINALS", "False").lower() == "true"
+    
+    # S3 prefix where original PDFs are stored (must match upload_pdfs_to_s3 / BDA_UPLOAD_PREFIX)
+    BDA_ORIGINALS_S3_PREFIX: str = os.getenv("BDA_ORIGINALS_S3_PREFIX", os.getenv("BDA_UPLOAD_PREFIX", "pdf-monitor/originals/"))
+    
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///data/url_monitor.db")
     
@@ -150,6 +192,13 @@ class Settings:
         # Lambda enrichment requires function name
         if cls.LAMBDA_ENRICHMENT_ENABLED and not cls.AWS_LAMBDA_ENRICHMENT_FUNCTION:
             issues.append("LAMBDA_ENRICHMENT_ENABLED is True but AWS_LAMBDA_ENRICHMENT_FUNCTION is not set")
+        
+        # BDA requires S3 bucket and profile ARN
+        if cls.BDA_ENABLED:
+            if not cls.BDA_S3_BUCKET:
+                issues.append("BDA_ENABLED is True but BDA_S3_BUCKET is not set")
+            if not cls.BDA_PROFILE_ARN:
+                issues.append("BDA_ENABLED is True but BDA_PROFILE_ARN is not set")
         
         return issues
 

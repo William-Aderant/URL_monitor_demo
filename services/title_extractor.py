@@ -1,9 +1,8 @@
 """
 Title Extraction Service
 
-Extracts and formats document titles from court form PDFs using:
-- Amazon Textract for text extraction (OCR)
-- Amazon Bedrock (Claude) for intelligent title/form number identification
+Extracts and formats document titles from court form PDFs using AWS Bedrock Data Automation (BDA).
+When BDA is enabled, all title/form extraction uses BDA. A fallback path exists when BDA is unavailable.
 
 Also generates preview images of the first page.
 """
@@ -25,6 +24,11 @@ from config import settings
 logger = structlog.get_logger()
 
 
+def _bda_available() -> bool:
+    """Check if BDA service is available without creating an instance."""
+    return settings.BDA_ENABLED and bool(settings.BDA_S3_BUCKET)
+
+
 @dataclass
 class TitleExtractionResult:
     """Result of title extraction."""
@@ -37,7 +41,7 @@ class TitleExtractionResult:
     llm_confidence: Optional[float] = None
     reasoning: Optional[str] = None
     error: Optional[str] = None
-    extraction_method: str = "textract+bedrock"
+    extraction_method: str = "bda"
     
     @property
     def display_title(self) -> str:
@@ -55,7 +59,8 @@ class TitleExtractionResult:
 
 class TitleExtractor:
     """
-    Extracts document titles from PDFs using AWS Textract and Bedrock.
+    Extracts document titles from PDFs using AWS BDA.
+    Fallback path when BDA is unavailable.
     """
     
     def __init__(self, aws_region: Optional[str] = None):
@@ -68,8 +73,32 @@ class TitleExtractor:
         self.aws_region = aws_region or settings.AWS_REGION
         self._textract_client = None
         self._bedrock_client = None
+        self._bda_service = None
         
-        logger.info("TitleExtractor initialized", region=self.aws_region)
+        logger.info(
+            "TitleExtractor initialized",
+            region=self.aws_region,
+            bda_enabled=settings.BDA_ENABLED
+        )
+    
+    @property
+    def bda_service(self):
+        """Lazy-load BDA service."""
+        if self._bda_service is None and _bda_available():
+            from services.bda_enrichment import BDAEnrichmentService
+            self._bda_service = BDAEnrichmentService(aws_region=self.aws_region)
+        return self._bda_service
+    
+    @property
+    def _use_bda(self) -> bool:
+        """Check if BDA should be used for title extraction."""
+        if not _bda_available():
+            return False
+        try:
+            return self.bda_service is not None and self.bda_service.is_available()
+        except Exception as e:
+            logger.warning("BDA availability check failed", error=str(e))
+            return False
     
     def _get_aws_session(self):
         """Get AWS session with credentials from settings or default credential chain."""
@@ -457,7 +486,90 @@ Return ONLY the JSON object, no other text."""
         preview_output_path: Optional[Path] = None
     ) -> TitleExtractionResult:
         """
-        Extract title and form number from a PDF.
+        Extract title and form number from a PDF using BDA.
+        Uses fallback when BDA is unavailable.
+        
+        Args:
+            pdf_path: Path to the PDF file
+            preview_output_path: Optional path to save preview image
+            
+        Returns:
+            TitleExtractionResult with extracted information
+        """
+        # Try BDA first if available
+        if self._use_bda:
+            logger.info("Attempting title extraction with BDA", pdf=str(pdf_path))
+            bda_result = self._extract_title_with_bda(pdf_path, preview_output_path)
+            if bda_result.success:
+                return bda_result
+            logger.warning(
+                "BDA extraction failed, using fallback",
+                error=bda_result.error
+            )
+        
+        # Fall back to fallback method
+        return self._extract_title_with_textract_bedrock(pdf_path, preview_output_path)
+    
+    def _extract_title_with_bda(
+        self,
+        pdf_path: Path,
+        preview_output_path: Optional[Path] = None
+    ) -> TitleExtractionResult:
+        """
+        Extract title using AWS Bedrock Data Automation (BDA).
+        
+        Args:
+            pdf_path: Path to the PDF file
+            preview_output_path: Optional path to save preview image
+            
+        Returns:
+            TitleExtractionResult with extracted information
+        """
+        try:
+            # Process with BDA
+            bda_result = self.bda_service.process_document(
+                pdf_path=pdf_path,
+                url="",  # URL not available at this level
+                preview_output_path=preview_output_path
+            )
+            
+            if not bda_result.success:
+                return TitleExtractionResult(
+                    success=False,
+                    error=bda_result.error or "BDA processing failed"
+                )
+            
+            # Generate preview image if requested (BDA doesn't do this)
+            if preview_output_path:
+                self.convert_pdf_to_image(pdf_path, preview_output_path)
+            
+            # Convert BDA result to TitleExtractionResult
+            return TitleExtractionResult(
+                success=True,
+                formatted_title=bda_result.formatted_title,
+                form_number=bda_result.form_number,
+                revision_date=bda_result.revision_date,
+                combined_confidence=bda_result.combined_confidence,
+                ocr_confidence=bda_result.ocr_confidence,
+                llm_confidence=bda_result.llm_confidence,
+                reasoning=bda_result.reasoning,
+                extraction_method="bda"
+            )
+            
+        except Exception as e:
+            logger.error("BDA title extraction failed", error=str(e))
+            return TitleExtractionResult(
+                success=False,
+                error=str(e)
+            )
+    
+    def _extract_title_with_textract_bedrock(
+        self,
+        pdf_path: Path,
+        preview_output_path: Optional[Path] = None
+    ) -> TitleExtractionResult:
+        """
+        Fallback title extraction when BDA is not available or fails.
         
         Args:
             pdf_path: Path to the PDF file
@@ -473,7 +585,7 @@ Return ONLY the JSON object, no other text."""
             )
         
         try:
-            logger.info("Extracting title", pdf=str(pdf_path))
+            logger.info("Extracting title (fallback)", pdf=str(pdf_path))
             
             # Step 1: Convert PDF to image
             image_bytes = self.convert_pdf_to_image(pdf_path, preview_output_path)
@@ -534,7 +646,7 @@ Return ONLY the JSON object, no other text."""
                 ocr_confidence=confidence_data["ocr_confidence"],
                 llm_confidence=confidence_data["llm_confidence"],
                 reasoning=reasoning,
-                extraction_method="textract+bedrock"
+                extraction_method="fallback"
             )
             
         except Exception as e:
@@ -591,7 +703,7 @@ Return ONLY the JSON object, no other text."""
                 ocr_confidence=confidence_data["ocr_confidence"],
                 llm_confidence=confidence_data["llm_confidence"],
                 reasoning=reasoning,
-                extraction_method="bedrock"
+                extraction_method="fallback"
             )
             
         except Exception as e:

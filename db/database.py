@@ -4,6 +4,7 @@ Database connection and session management.
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from sqlalchemy.pool import NullPool
 from typing import Generator
 import structlog
 
@@ -11,11 +12,15 @@ from config import settings
 
 logger = structlog.get_logger()
 
-# Create engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Needed for SQLite
-)
+# SQLite with many parallel workers exhausts the default QueuePool (5+10 connections).
+# Use NullPool for SQLite so each session gets its own connection; no pool timeout.
+_is_sqlite = settings.DATABASE_URL.strip().lower().startswith("sqlite")
+_engine_kw: dict = {}
+if _is_sqlite:
+    _engine_kw["connect_args"] = {"check_same_thread": False}
+    _engine_kw["poolclass"] = NullPool
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kw)
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

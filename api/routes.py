@@ -928,7 +928,7 @@ async def extract_title_for_version(
 ):
     """
     Manually trigger title extraction for a specific version.
-    Uses AWS Textract + Bedrock to extract title and form number.
+    Uses AWS BDA to extract title and form number.
     """
     from services.title_extractor import TitleExtractor
     
@@ -963,6 +963,16 @@ async def extract_title_for_version(
     version.form_number = result.form_number
     version.title_confidence = result.combined_confidence
     version.title_extraction_method = result.extraction_method
+    # Replace URL display name with BDA-extracted title
+    if result.formatted_title:
+        url = version.monitored_url if hasattr(version, "monitored_url") else db.query(MonitoredURL).filter(MonitoredURL.id == version.monitored_url_id).first()
+        if url:
+            bda_display = (
+                f"{result.formatted_title} {{{result.form_number}}}"
+                if result.form_number
+                else result.formatted_title
+            )
+            url.name = bda_display[:255]
     db.commit()
     
     return {

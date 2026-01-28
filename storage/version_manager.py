@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 import structlog
 
+from config import settings
 from db.models import MonitoredURL, PDFVersion, ChangeLog
 from diffing.hasher import HashResult
 from diffing.change_detector import ChangeResult
@@ -285,6 +286,35 @@ class VersionManager:
             version.id
         )
     
+    def _get_original_pdf_from_s3(self, url_id: int, version_id: int) -> Optional[Path]:
+        """
+        Fetch original PDF from S3 (same prefix as upload_pdfs_to_s3) and cache locally.
+        Returns path to cached file or None if fetch fails.
+        """
+        if not settings.BDA_S3_BUCKET:
+            return None
+        prefix = (settings.BDA_ORIGINALS_S3_PREFIX or "").rstrip("/")
+        s3_key = f"{prefix}/{url_id}/{version_id}/original.pdf"
+        cache_dir = self.file_store.storage_path / ".s3_originals_cache" / str(url_id) / str(version_id)
+        cache_path = cache_dir / "original.pdf"
+        if cache_path.exists():
+            return cache_path
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+            s3 = boto3.client(
+                "s3",
+                region_name=settings.AWS_REGION or "us-east-1",
+                **(dict(aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY) if (settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY) else {})
+            )
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            s3.download_file(settings.BDA_S3_BUCKET, s3_key, str(cache_path))
+            logger.debug("Fetched original PDF from S3", url_id=url_id, version_id=version_id, key=s3_key)
+            return cache_path
+        except Exception as e:
+            logger.warning("S3 fetch failed for original PDF", url_id=url_id, version_id=version_id, key=s3_key, error=str(e))
+            return None
+
     def get_original_pdf_path(
         self,
         db: Session,
@@ -292,22 +322,18 @@ class VersionManager:
     ) -> Optional[Path]:
         """
         Get full path to original PDF.
-        
-        Args:
-            db: Database session
-            version_id: Version ID
-            
-        Returns:
-            Path to original PDF or None
+        When BDA_USE_S3_ORIGINALS is True, fetches from S3 (same prefix as upload_pdfs_to_s3) and caches locally.
+        Otherwise uses local storage only.
         """
         version = self.get_version(db, version_id)
         if not version:
             return None
-        
-        return self.file_store.get_original_pdf(
-            version.monitored_url_id,
-            version.id
-        )
+        url_id, vid = version.monitored_url_id, version.id
+        if getattr(settings, "BDA_USE_S3_ORIGINALS", False) and settings.BDA_S3_BUCKET:
+            path = self._get_original_pdf_from_s3(url_id, vid)
+            if path:
+                return path
+        return self.file_store.get_original_pdf(url_id, vid)
     
     def get_normalized_pdf_path(
         self,

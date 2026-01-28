@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 import structlog
 
 from db.database import SessionLocal
-from db.models import PDFVersion
+from db.models import MonitoredURL, PDFVersion
 from services.title_extractor import TitleExtractor
 from storage.file_store import FileStore
 from storage.version_manager import VersionManager
@@ -85,6 +85,16 @@ def process_version(version_id: int, url_id: int, dry_run: bool = False) -> dict
             version.title_confidence = result.combined_confidence
             version.title_extraction_method = result.extraction_method
             version.revision_date = result.revision_date
+            # Replace URL display name with BDA-extracted title
+            if result.formatted_title:
+                url = version.monitored_url if hasattr(version, "monitored_url") else db.query(MonitoredURL).filter(MonitoredURL.id == version.monitored_url_id).first()
+                if url:
+                    bda_display = (
+                        f"{result.formatted_title} {{{result.form_number}}}"
+                        if result.form_number
+                        else result.formatted_title
+                    )
+                    url.name = bda_display[:255]
             
             if not dry_run:
                 db.commit()

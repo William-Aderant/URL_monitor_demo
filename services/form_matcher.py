@@ -241,18 +241,21 @@ class FormMatcher:
         Check if two titles are meaningfully different.
         
         Normalizes titles before comparison to handle minor formatting differences.
+        When either title is missing (e.g. extraction failed), we do not treat as "different"
+        so form matching falls back to form number or text similarity instead of "Name Change".
         
         Args:
             old_title: Previous version title
             new_title: New version title
             
         Returns:
-            True if titles are meaningfully different, False otherwise
+            True if titles are meaningfully different, False otherwise (or unknown)
         """
         if not old_title and not new_title:
             return False
         if not old_title or not new_title:
-            return True
+            # Unknown (e.g. title extraction failed) - do not assume "name change"
+            return False
         
         # Normalize for comparison
         old_normalized = re.sub(r'\s+', ' ', old_title.lower().strip())

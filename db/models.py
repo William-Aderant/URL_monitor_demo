@@ -87,7 +87,7 @@ class PDFVersion(Base):
     formatted_title = Column(String(512), nullable=True)
     form_number = Column(String(100), nullable=True)
     title_confidence = Column(Float, nullable=True)
-    title_extraction_method = Column(String(50), nullable=True)  # textract+bedrock, manual
+    title_extraction_method = Column(String(50), nullable=True)  # bda, fallback, manual
     
     # Revision date extracted from PDF (REQ-006)
     revision_date = Column(String(50), nullable=True)  # Extracted revision date string

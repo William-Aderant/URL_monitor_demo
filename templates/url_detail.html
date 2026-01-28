@@ -97,7 +97,7 @@
                                     {% if version.title_confidence %}
                                     Confidence: {{ (version.title_confidence * 100)|round|int }}%
                                     {% if version.title_extraction_method %}
-                                    • Extracted via {{ version.title_extraction_method }}
+                                    • Extracted via {% if version.title_extraction_method == 'bda' %}BDA{% else %}Fallback{% endif %}
                                     {% endif %}
                                     {% endif %}
                                 </div>
@@ -121,7 +121,7 @@
                                 <a href="/api/urls/{{ url.id }}/versions/{{ version.id }}/pdf?normalized=true" class="btn btn-secondary btn-sm" target="_blank">
                                     Normalized PDF
                                 </a>
-                                <button onclick="extractTitle({{ url.id }}, {{ version.id }})" class="btn btn-secondary btn-sm" title="Re-extract title using AWS Textract + Bedrock">
+                                <button onclick="extractTitle({{ url.id }}, {{ version.id }})" class="btn btn-secondary btn-sm" title="Re-extract title using AWS BDA">
                                     🔄 Extract Title
                                 </button>
                             </div>

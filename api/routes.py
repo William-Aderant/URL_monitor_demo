@@ -928,9 +928,9 @@ async def extract_title_for_version(
 ):
     """
     Manually trigger title extraction for a specific version.
-    Uses AWS Textract + Bedrock to extract title and form number.
+    Uses Nova 2 Lite (if BEDROCK_NOVA_ENABLED=True) or Textract + Claude.
     """
-    from services.title_extractor import TitleExtractor
+    import os
     
     # Get the version
     version = db.query(PDFVersion).filter(PDFVersion.id == version_id).first()
@@ -942,13 +942,18 @@ async def extract_title_for_version(
     if not pdf_path or not pdf_path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")
     
-    # Initialize extractor
-    extractor = TitleExtractor()
+    # Initialize extractor based on feature flag
+    if os.getenv("BEDROCK_NOVA_ENABLED", "False").lower() == "true":
+        from services.nova_document_processor import NovaDocumentProcessor
+        extractor = NovaDocumentProcessor()
+    else:
+        from services.title_extractor import TitleExtractor
+        extractor = TitleExtractor()
     
     if not extractor.is_available():
         raise HTTPException(
             status_code=503, 
-            detail="AWS credentials not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+            detail="Title extraction not available. Check AWS credentials and BEDROCK_NOVA_ENABLED setting."
         )
     
     # Extract title

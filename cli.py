@@ -136,6 +136,8 @@ class MonitoringOrchestrator:
     
     def __init__(self):
         """Initialize orchestrator with all required components."""
+        import os
+        
         self.aws_scraper = None  # Lazy init
         self.downloader = PDFDownloader()
         self.text_extractor = TextExtractor()
@@ -143,7 +145,15 @@ class MonitoringOrchestrator:
         self.hasher = Hasher()
         self.change_detector = ChangeDetector()
         self.version_manager = VersionManager()
-        self.title_extractor = TitleExtractor()
+        
+        # Title extraction: Use Nova 2 Lite if enabled, otherwise Textract+Claude
+        if os.getenv("BEDROCK_NOVA_ENABLED", "False").lower() == "true":
+            from services.nova_document_processor import NovaDocumentProcessor
+            self.title_extractor = NovaDocumentProcessor()
+            logger.info("Using Nova 2 Lite for title extraction")
+        else:
+            self.title_extractor = TitleExtractor()
+            logger.info("Using Textract+Claude for title extraction")
         
         # Enhanced change detection services
         self.link_crawler = LinkCrawler()
@@ -636,9 +646,9 @@ class MonitoringOrchestrator:
                         ocr_used=ocr_used
                     )
                     
-                    # Step 6b: Extract title using AWS Textract + Bedrock (only if change detected)
+                    # Step 6b: Extract title (only if change detected)
                     if change_result.changed and self.title_extractor.is_available():
-                        logger.info("Extracting title with Textract + Bedrock")
+                        logger.info("Extracting title")
                         preview_path = self.version_manager.file_store.get_preview_image_path(
                             monitored_url.id, new_version.id
                         )

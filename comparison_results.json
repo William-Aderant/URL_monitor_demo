@@ -1,0 +1,518 @@
+{
+  "timestamp": "2026-01-29T14:29:15.864633",
+  "stats": {
+    "total": 20,
+    "textract_claude_success": 20,
+    "nova_success": 20,
+    "both_success": 20,
+    "titles_match": 14,
+    "form_numbers_match": 19,
+    "nova_faster_count": 10,
+    "textract_claude_total_time": 71.98,
+    "nova_total_time": 89.37000000000002,
+    "textract_claude_avg_time": 3.6,
+    "nova_avg_time": 4.47
+  },
+  "results": [
+    {
+      "version_id": 1,
+      "url_id": 5,
+      "url_name": "Alaska CIV-775",
+      "pdf_path": "data/pdfs/5/1/original.pdf",
+      "file_size_kb": 41.908203125,
+      "textract_claude": {
+        "success": true,
+        "title": "Request And Order For Central Calendaring (Crim R 351 Uniform Calendaring Order)",
+        "form_number": "CIV-775",
+        "revision_date": null,
+        "confidence": 0.92,
+        "time_seconds": 3.88,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Request And Order For Central Calendaring",
+        "form_number": "CIV-775",
+        "revision_date": "11/25",
+        "confidence": 0.95,
+        "time_seconds": 3.01,
+        "error": null
+      }
+    },
+    {
+      "version_id": 2,
+      "url_id": 6,
+      "url_name": "Alaska CIV-106",
+      "pdf_path": "data/pdfs/6/2/original.pdf",
+      "file_size_kb": 791.9033203125,
+      "textract_claude": {
+        "success": true,
+        "title": "How To Serve A Summons In A Civil Lawsuit",
+        "form_number": "CIV-106",
+        "revision_date": null,
+        "confidence": 0.921,
+        "time_seconds": 3.28,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "How To Serve A Summons",
+        "form_number": "CIV-106",
+        "revision_date": "4/21",
+        "confidence": 0.95,
+        "time_seconds": 14.47,
+        "error": null
+      }
+    },
+    {
+      "version_id": 3,
+      "url_id": 7,
+      "url_name": "Alaska CIV-531",
+      "pdf_path": "data/pdfs/7/3/original.pdf",
+      "file_size_kb": 132.912109375,
+      "textract_claude": {
+        "success": true,
+        "title": "Claim Of Exemption From Garnishment (As 0938050(B))",
+        "form_number": "CIV-531",
+        "revision_date": null,
+        "confidence": 0.839,
+        "time_seconds": 3.88,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Claim Of Exemption From Garnishment",
+        "form_number": "CIV-531",
+        "revision_date": "7/10",
+        "confidence": 0.95,
+        "time_seconds": 3.33,
+        "error": null
+      }
+    },
+    {
+      "version_id": 4,
+      "url_id": 8,
+      "url_name": "Alaska CIV-563",
+      "pdf_path": "data/pdfs/8/4/original.pdf",
+      "file_size_kb": 484.4267578125,
+      "textract_claude": {
+        "success": true,
+        "title": "Affidavit Return Of Service For Writ Of Execution Bank Sweep",
+        "form_number": "CIV-563",
+        "revision_date": null,
+        "confidence": 0.996,
+        "time_seconds": 3.26,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Affidavit Return Of Service For Writ Of Execution Bank Sweep",
+        "form_number": "CIV-563",
+        "revision_date": "8/10",
+        "confidence": 0.95,
+        "time_seconds": 4.76,
+        "error": null
+      }
+    },
+    {
+      "version_id": 5,
+      "url_id": 9,
+      "url_name": "Alaska CIV-622",
+      "pdf_path": "data/pdfs/9/5/original.pdf",
+      "file_size_kb": 231.0400390625,
+      "textract_claude": {
+        "success": true,
+        "title": "Affidavit Of Attempted Service Unserved Documents",
+        "form_number": "CIV-622",
+        "revision_date": null,
+        "confidence": 0.962,
+        "time_seconds": 3.93,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Affidavit Of Attempted Service Unserved Documents",
+        "form_number": "CIV-622",
+        "revision_date": "(8/10)",
+        "confidence": 0.95,
+        "time_seconds": 3.32,
+        "error": null
+      }
+    },
+    {
+      "version_id": 6,
+      "url_id": 10,
+      "url_name": "Alaska CIV-702",
+      "pdf_path": "data/pdfs/10/6/original.pdf",
+      "file_size_kb": 63.0380859375,
+      "textract_claude": {
+        "success": true,
+        "title": "Affidavit Of Additional Service",
+        "form_number": "CIV-702",
+        "revision_date": null,
+        "confidence": 0.996,
+        "time_seconds": 3.81,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Affidavit Of Additional Service",
+        "form_number": "CIV-702",
+        "revision_date": "2/23",
+        "confidence": 0.95,
+        "time_seconds": 3.52,
+        "error": null
+      }
+    },
+    {
+      "version_id": 7,
+      "url_id": 11,
+      "url_name": "Alaska CIV-515",
+      "pdf_path": "data/pdfs/11/7/original.pdf",
+      "file_size_kb": 124.90234375,
+      "textract_claude": {
+        "success": true,
+        "title": "Claim Of Exemptions",
+        "form_number": "CIV-515",
+        "revision_date": null,
+        "confidence": 0.84,
+        "time_seconds": 3.76,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Claim Of Exemptions",
+        "form_number": "CIV-515",
+        "revision_date": "12/12",
+        "confidence": 0.95,
+        "time_seconds": 3.04,
+        "error": null
+      }
+    },
+    {
+      "version_id": 8,
+      "url_id": 12,
+      "url_name": "Alaska CIV-537",
+      "pdf_path": "data/pdfs/12/8/original.pdf",
+      "file_size_kb": 125.197265625,
+      "textract_claude": {
+        "success": true,
+        "title": "Claim Of Exemptions For Property Subject To Value Limits Under As 0938020",
+        "form_number": "CIV-537",
+        "revision_date": null,
+        "confidence": 0.915,
+        "time_seconds": 3.13,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Claim Of Exemptions For Property Subject To Value Limits Under As 0938020",
+        "form_number": "CIV-537",
+        "revision_date": "3/00",
+        "confidence": 0.95,
+        "time_seconds": 2.84,
+        "error": null
+      }
+    },
+    {
+      "version_id": 9,
+      "url_id": 13,
+      "url_name": "Alaska CIV-730",
+      "pdf_path": "data/pdfs/13/9/original.pdf",
+      "file_size_kb": 127.576171875,
+      "textract_claude": {
+        "success": true,
+        "title": "Complaint For Forcible Entry And Detainer (Seeking Eviction May Include Rent Andor Damages)",
+        "form_number": "CIV-730",
+        "revision_date": null,
+        "confidence": 0.923,
+        "time_seconds": 4.46,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Complaint For Forcible Entry And Detainer (Seeking Eviction May Include Rent Andor Damages)",
+        "form_number": "CIV-730",
+        "revision_date": "4/20",
+        "confidence": 0.95,
+        "time_seconds": 3.97,
+        "error": null
+      }
+    },
+    {
+      "version_id": 10,
+      "url_id": 14,
+      "url_name": "Alaska CIV-562",
+      "pdf_path": "data/pdfs/14/10/original.pdf",
+      "file_size_kb": 475.62109375,
+      "textract_claude": {
+        "success": true,
+        "title": "Affidavit Return Of Service For Writ Of Execution Single Person Or Entity Served",
+        "form_number": "CIV-562",
+        "revision_date": null,
+        "confidence": 0.997,
+        "time_seconds": 3.56,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Affidavit Return Of Service For Writ Of Execution Single Person Or Entity Served",
+        "form_number": "CIV-562",
+        "revision_date": "8/10",
+        "confidence": 0.95,
+        "time_seconds": 3.47,
+        "error": null
+      }
+    },
+    {
+      "version_id": 11,
+      "url_id": 15,
+      "url_name": "Alaska CIV-410",
+      "pdf_path": "data/pdfs/15/11/original.pdf",
+      "file_size_kb": 874.83984375,
+      "textract_claude": {
+        "success": true,
+        "title": "Cost Bill",
+        "form_number": "CIV-410",
+        "revision_date": null,
+        "confidence": 0.836,
+        "time_seconds": 3.38,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Cost Bill",
+        "form_number": "CIV-410",
+        "revision_date": "3/00",
+        "confidence": 0.95,
+        "time_seconds": 4.55,
+        "error": null
+      }
+    },
+    {
+      "version_id": 12,
+      "url_id": 16,
+      "url_name": "Alaska CIV-790",
+      "pdf_path": "data/pdfs/16/12/original.pdf",
+      "file_size_kb": 143.2041015625,
+      "textract_claude": {
+        "success": true,
+        "title": "Application For Ex Parte Order For Testing Examination Or Screening",
+        "form_number": "CIV-790",
+        "revision_date": null,
+        "confidence": 0.921,
+        "time_seconds": 3.64,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Application For Ex Parte Order For Testing Examination Or Screening",
+        "form_number": "CIV-790",
+        "revision_date": "8/23",
+        "confidence": 0.95,
+        "time_seconds": 4.22,
+        "error": null
+      }
+    },
+    {
+      "version_id": 13,
+      "url_id": 17,
+      "url_name": "Alaska CIV-105",
+      "pdf_path": "data/pdfs/17/13/original.pdf",
+      "file_size_kb": 278.416015625,
+      "textract_claude": {
+        "success": true,
+        "title": "Summons Forcible Entry And Detainer",
+        "form_number": "CIV-105",
+        "revision_date": null,
+        "confidence": 0.997,
+        "time_seconds": 3.41,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Summons Forcible Entry And Detainer",
+        "form_number": "CIV-105",
+        "revision_date": "3/23",
+        "confidence": 0.95,
+        "time_seconds": 4.15,
+        "error": null
+      }
+    },
+    {
+      "version_id": 14,
+      "url_id": 18,
+      "url_name": "Alaska CIV-735",
+      "pdf_path": "data/pdfs/18/14/original.pdf",
+      "file_size_kb": 260.017578125,
+      "textract_claude": {
+        "success": true,
+        "title": "Answer To Forcible Entry And Detainer (Eviction) Complaint",
+        "form_number": "CIV-735",
+        "revision_date": null,
+        "confidence": 0.996,
+        "time_seconds": 3.28,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Answer To Forcible Entry And Detainer (Eviction) Complaint",
+        "form_number": "CIV-735",
+        "revision_date": "8/21",
+        "confidence": 0.95,
+        "time_seconds": 4.82,
+        "error": null
+      }
+    },
+    {
+      "version_id": 15,
+      "url_id": 19,
+      "url_name": "Alaska CIV-760",
+      "pdf_path": "data/pdfs/19/15/original.pdf",
+      "file_size_kb": 32.3623046875,
+      "textract_claude": {
+        "success": true,
+        "title": "Application For Post Conviction Relief From Conviction Or Sentence (Criminal Rule 351)",
+        "form_number": "CIV-760",
+        "revision_date": null,
+        "confidence": 0.998,
+        "time_seconds": 3.89,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Application For Post Conviction Relief From Convictionsentence (Criminal Rule 351)",
+        "form_number": "CIV-760",
+        "revision_date": "6/14",
+        "confidence": 0.95,
+        "time_seconds": 5.73,
+        "error": null
+      }
+    },
+    {
+      "version_id": 16,
+      "url_id": 20,
+      "url_name": "Alaska CIV-575",
+      "pdf_path": "data/pdfs/20/16/original.pdf",
+      "file_size_kb": 145.7255859375,
+      "textract_claude": {
+        "success": true,
+        "title": "Writ Of Assistance (Not Valid Without Court Seal)",
+        "form_number": "CIV-575",
+        "revision_date": null,
+        "confidence": 0.859,
+        "time_seconds": 3.99,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Writ Of Assistance",
+        "form_number": "CIV-575",
+        "revision_date": "2/17",
+        "confidence": 0.95,
+        "time_seconds": 3.23,
+        "error": null
+      }
+    },
+    {
+      "version_id": 17,
+      "url_id": 21,
+      "url_name": "Alaska CIV-585",
+      "pdf_path": "data/pdfs/21/17/original.pdf",
+      "file_size_kb": 118.078125,
+      "textract_claude": {
+        "success": true,
+        "title": "Writ Of Execution For Bank Sweep By Government Entity",
+        "form_number": "CIV-585",
+        "revision_date": null,
+        "confidence": 0.882,
+        "time_seconds": 3.16,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Writ Of Execution For Bank Sweep By Government Entity",
+        "form_number": "CIV-585",
+        "revision_date": "4/15",
+        "confidence": 0.95,
+        "time_seconds": 3.26,
+        "error": null
+      }
+    },
+    {
+      "version_id": 18,
+      "url_id": 22,
+      "url_name": "Alaska CIV-100",
+      "pdf_path": "data/pdfs/22/18/original.pdf",
+      "file_size_kb": 137.0244140625,
+      "textract_claude": {
+        "success": true,
+        "title": "Summons",
+        "form_number": "CIV-100",
+        "revision_date": null,
+        "confidence": 0.916,
+        "time_seconds": 3.34,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Summons And Notice To Both Parties Of Judicial Assignment",
+        "form_number": "CIV-100",
+        "revision_date": "10/17",
+        "confidence": 0.95,
+        "time_seconds": 3.4,
+        "error": null
+      }
+    },
+    {
+      "version_id": 19,
+      "url_id": 23,
+      "url_name": "Alaska VS-405",
+      "pdf_path": "data/pdfs/23/19/original.pdf",
+      "file_size_kb": 52.87109375,
+      "textract_claude": {
+        "success": true,
+        "title": "Application For Legal Name Change",
+        "form_number": "VS-405 06-5422",
+        "revision_date": "03/2015",
+        "confidence": 0.882,
+        "time_seconds": 3.56,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Application For Legal Name Change",
+        "form_number": "VS-405",
+        "revision_date": "03/2015",
+        "confidence": 0.95,
+        "time_seconds": 3.13,
+        "error": null
+      }
+    },
+    {
+      "version_id": 20,
+      "url_id": 24,
+      "url_name": "Alaska CIV-481",
+      "pdf_path": "data/pdfs/24/20/original.pdf",
+      "file_size_kb": 202.0947265625,
+      "textract_claude": {
+        "success": true,
+        "title": "Answer Counterclaim To Complaint To Collect A Debt",
+        "form_number": "CIV-481",
+        "revision_date": null,
+        "confidence": 0.999,
+        "time_seconds": 3.38,
+        "error": null
+      },
+      "nova": {
+        "success": true,
+        "title": "Answer Counterclaim To Complaint To Collect A Debt",
+        "form_number": "CIV-481",
+        "revision_date": "4/25",
+        "confidence": 0.95,
+        "time_seconds": 7.15,
+        "error": null
+      }
+    }
+  ]
+}

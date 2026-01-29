@@ -2,9 +2,14 @@
 *.png
 *.pdf
 /data
-.cursor/debug.log
-.cursor/debug.log
-.cursor/debug.log
-.cursor/debug.log
-.cursor/debug.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# macOS
+.DS_Store
+
+# IDE
 .cursor/debug.log

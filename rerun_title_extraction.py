@@ -18,11 +18,20 @@ import structlog
 
 from db.database import SessionLocal
 from db.models import PDFVersion
-from services.title_extractor import TitleExtractor
 from storage.file_store import FileStore
 from storage.version_manager import VersionManager
 
 logger = structlog.get_logger()
+
+
+def get_title_extractor():
+    """Get the appropriate title extractor based on feature flag."""
+    if os.getenv("BEDROCK_NOVA_ENABLED", "False").lower() == "true":
+        from services.nova_document_processor import NovaDocumentProcessor
+        return NovaDocumentProcessor()
+    else:
+        from services.title_extractor import TitleExtractor
+        return TitleExtractor()
 
 
 def process_version(version_id: int, url_id: int, dry_run: bool = False) -> dict:
@@ -44,13 +53,13 @@ def process_version(version_id: int, url_id: int, dry_run: bool = False) -> dict
         # Initialize services (each thread gets its own instances)
         file_store = FileStore()
         version_manager = VersionManager(file_store)
-        extractor = TitleExtractor()
+        extractor = get_title_extractor()
         
         if not extractor.is_available():
             return {
                 "version_id": version_id,
                 "success": False,
-                "error": "AWS credentials not configured"
+                "error": "Title extraction not available - check AWS credentials and BEDROCK_NOVA_ENABLED"
             }
         
         # Get the version from database

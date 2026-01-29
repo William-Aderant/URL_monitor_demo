@@ -23,6 +23,21 @@
             --border: #2f3336;
         }
         
+        /* Light theme - aligned with docketing project's clean aesthetic */
+        [data-theme="light"] {
+            --bg-primary: #F2F8FF;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f8f9fa;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --accent: #2680EB;
+            --accent-hover: #1a6dd4;
+            --success: #28a745;
+            --warning: #ffc107;
+            --error: #dc3545;
+            --border: #e0e0e0;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -45,18 +60,25 @@
         
         header {
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            padding: 16px 0;
+            border-bottom: 2px solid var(--border);
+            padding: 20px 0;
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        [data-theme="light"] header {
+            border-bottom-color: #8CC63F;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
         }
         
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 20px;
+            gap: 32px;
+            flex-wrap: wrap;
         }
         
         .search-bar {
@@ -72,55 +94,89 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            white-space: nowrap;
         }
         
         .logo-icon {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             background: linear-gradient(135deg, var(--accent), #7c3aed);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
+        }
+        
+        [data-theme="light"] .logo-icon {
+            background: linear-gradient(135deg, #2680EB, #1a6dd4);
+            box-shadow: 0 2px 4px rgba(38, 128, 235, 0.2);
         }
         
         nav {
             display: flex;
-            gap: 24px;
+            gap: 32px;
+            flex: 1;
+            justify-content: center;
+            align-items: center;
         }
         
         nav a {
             color: var(--text-secondary);
             text-decoration: none;
             font-weight: 500;
-            transition: color 0.2s;
+            font-size: 0.95rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
         }
         
-        nav a:hover, nav a.active {
+        nav a:hover {
             color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        nav a.active {
+            color: var(--accent);
+            background: rgba(29, 155, 240, 0.1);
+        }
+        
+        [data-theme="light"] nav a.active {
+            background: rgba(13, 110, 253, 0.1);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         
         .api-meter {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
+            gap: 6px;
+            padding: 8px 14px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 0.875rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
         
         .api-meter-label {
             color: var(--text-secondary);
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
         .api-meter-count {
             color: var(--accent);
             font-weight: 700;
             font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.9rem;
         }
         
         main {
@@ -143,8 +199,13 @@
             background: var(--bg-secondary);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        [data-theme="light"] .card {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
         }
         
         .card-header {
@@ -230,22 +291,29 @@
             align-items: center;
             gap: 8px;
             padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 600;
             font-size: 0.875rem;
             text-decoration: none;
             border: none;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
         }
         
         .btn-primary {
             background: var(--accent);
             color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .btn-primary:hover {
             background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
         }
         
         .btn-secondary {
@@ -256,17 +324,18 @@
         
         .btn-secondary:hover {
             background: var(--border);
+            border-color: var(--text-secondary);
         }
         
         .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.75rem;
+            padding: 6px 14px;
+            font-size: 0.8rem;
         }
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
             margin-bottom: 32px;
         }
         
@@ -274,19 +343,26 @@
             background: var(--bg-secondary);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 20px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        [data-theme="light"] .stat-card {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
         }
         
         .stat-value {
-            font-size: 2rem;
+            font-size: 2.25rem;
             font-weight: 700;
             color: var(--text-primary);
+            line-height: 1;
         }
         
         .stat-label {
             font-size: 0.875rem;
             color: var(--text-secondary);
-            margin-top: 4px;
+            margin-top: 8px;
+            font-weight: 500;
         }
         
         .url-link {
@@ -372,6 +448,37 @@
             background: var(--success);
         }
         
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        
+        .theme-toggle:hover {
+            background: var(--border);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-toggle:active {
+            transform: scale(0.98);
+        }
+        
+        .theme-toggle-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
         footer {
             border-top: 1px solid var(--border);
             padding: 24px 0;
@@ -381,14 +488,32 @@
             margin-top: auto;
         }
         
+        @media (max-width: 1024px) {
+            nav {
+                gap: 20px;
+                font-size: 0.9rem;
+            }
+        }
+        
         @media (max-width: 768px) {
             .header-content {
-                flex-direction: column;
-                gap: 16px;
+                gap: 12px;
             }
             
             nav {
-                gap: 16px;
+                width: 100%;
+                justify-content: space-around;
+                gap: 8px;
+                order: 3;
+            }
+            
+            nav a {
+                font-size: 0.85rem;
+                padding: 6px 8px;
+            }
+            
+            .header-actions {
+                order: 2;
             }
             
             .stats-grid {
@@ -406,31 +531,19 @@
             </a>
             <nav>
                 <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="/triage" class="{% if request.url.path == '/triage' %}active{% endif %}">🎯 Triage</a>
+                <a href="/triage" class="{% if request.url.path == '/triage' %}active{% endif %}">Triage</a>
                 <a href="/changes" class="{% if request.url.path == '/changes' %}active{% endif %}">Changes</a>
-                <a href="/metrics" class="{% if request.url.path == '/metrics' %}active{% endif %}">📊 Metrics</a>
-                <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}">🔍 Search</a>
+                <a href="/metrics" class="{% if request.url.path == '/metrics' %}active{% endif %}">Metrics</a>
+                <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}">Search</a>
             </nav>
-            <div class="search-bar">
-                <form action="/search" method="get" style="display: flex; gap: 8px; align-items: center;">
-                    <input 
-                        type="text" 
-                        name="q" 
-                        placeholder="Search forms..." 
-                        class="search-input"
-                        value="{{ request.query_params.get('q', '') }}"
-                    >
-                    <button 
-                        type="submit"
-                        style="padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;"
-                    >
-                        Search
-                    </button>
-                </form>
-            </div>
-            <div class="api-meter" id="api-meter">
-                <span class="api-meter-label">AWS Calls:</span>
-                <span class="api-meter-count" id="api-count">0</span>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <span class="theme-toggle-icon" id="themeIcon">🌙</span>
+                </button>
+                <div class="api-meter" id="api-meter">
+                    <span class="api-meter-label">AWS:</span>
+                    <span class="api-meter-count" id="api-count">0</span>
+                </div>
             </div>
         </div>
     </header>
@@ -447,25 +560,82 @@
     
     {% block scripts %}{% endblock %}
     <script>
-        // Update API call counter
-        async function updateAPICounter() {
-            try {
-                const response = await fetch('/api/aws-calls');
-                const data = await response.json();
-                const countEl = document.getElementById('api-count');
-                if (countEl) {
-                    countEl.textContent = data.counts.total || 0;
-                }
-            } catch (error) {
-                console.error('Failed to update API counter:', error);
+        // OPTIMIZED Theme management - faster switching
+        (function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            const htmlElement = document.documentElement;
+            
+            // Detect system preference
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const systemTheme = prefersDark ? 'dark' : 'light';
+            
+            // Load saved theme or use system preference
+            const savedTheme = localStorage.getItem('theme');
+            const initialTheme = savedTheme || systemTheme;
+            
+            // Apply initial theme immediately (before page fully loads)
+            function setTheme(theme) {
+                htmlElement.setAttribute('data-theme', theme);
+                themeIcon.textContent = theme === 'light' ? '☀️' : '🌙';
             }
-        }
+            
+            setTheme(initialTheme);
+            
+            // Listen for system theme changes (if user hasn't manually set a preference)
+            if (!savedTheme) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                    setTheme(e.matches ? 'dark' : 'light');
+                });
+            }
+            
+            // Debounced theme toggle for performance
+            let isToggling = false;
+            themeToggle.addEventListener('click', () => {
+                if (isToggling) return; // Prevent rapid clicks
+                isToggling = true;
+                
+                const currentTheme = htmlElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                // Quick theme switch without heavy animations
+                setTheme(newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                // Reset debounce after short delay
+                setTimeout(() => {
+                    isToggling = false;
+                }, 200);
+            });
+        })();
         
-        // Update on page load
-        updateAPICounter();
-        
-        // Update every 5 seconds
-        setInterval(updateAPICounter, 5000);
+        // Optimized API call counter - only updates if value changed
+        (function() {
+            const countEl = document.getElementById('api-count');
+            let lastCount = null;
+            
+            async function updateAPICounter() {
+                try {
+                    const response = await fetch('/api/aws-calls');
+                    const data = await response.json();
+                    const newCount = data.counts.total || 0;
+                    
+                    // Only update DOM if value changed (prevents unnecessary repaints)
+                    if (countEl && newCount !== lastCount) {
+                        countEl.textContent = newCount;
+                        lastCount = newCount;
+                    }
+                } catch (error) {
+                    console.error('Failed to update API counter:', error);
+                }
+            }
+            
+            // Update on page load
+            updateAPICounter();
+            
+            // Update every 5 seconds
+            setInterval(updateAPICounter, 5000);
+        })();
     </script>
 </body>
 </html>

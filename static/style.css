@@ -1,8 +1,61 @@
 /* Additional styles - most styles are inline in base.html for simplicity */
 
+/* PERFORMANCE OPTIMIZATIONS */
+
 /* Smooth scrolling */
 html {
     scroll-behavior: smooth;
+}
+
+/* CSS Containment for better rendering performance */
+.card {
+    contain: layout style;
+}
+
+.stat-card {
+    contain: layout style;
+}
+
+/* Optimize table rendering with large datasets */
+table {
+    contain: layout;
+}
+
+/* Optimize theme toggle for smooth animations */
+.theme-toggle {
+    will-change: transform, background-color;
+}
+
+.theme-toggle-icon {
+    will-change: transform;
+}
+
+/* PERFORMANCE: Only transition specific UI elements, not everything */
+body,
+header,
+footer,
+.card,
+.stat-card,
+.api-meter,
+.theme-toggle,
+.btn,
+nav a {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Fast transitions for badges */
+.badge {
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* NO transitions on table rows for performance with large datasets */
+tbody tr {
+    transition: none;
+}
+
+/* Only transition background on hover (instant) */
+tbody tr:hover {
+    background: var(--bg-tertiary);
 }
 
 /* Code/mono styling */
@@ -42,19 +95,24 @@ button:focus, a:focus {
     animation: fadeIn 0.3s ease-out;
 }
 
-/* Table hover enhancement */
-tbody tr {
-    transition: background-color 0.15s ease;
-}
+/* Table hover enhancement - removed for performance */
 
 /* Yellow highlighting for changed rows */
 tbody tr.row-changed {
-    background-color: rgba(255, 255, 0, 0.15) !important;
-    border-left: 4px solid #ffd700;
+    background-color: rgba(255, 200, 0, 0.15) !important;
+    border-left: 4px solid #ffc107;
 }
 
 tbody tr.row-changed:hover {
-    background-color: rgba(255, 255, 0, 0.25) !important;
+    background-color: rgba(255, 200, 0, 0.25) !important;
+}
+
+[data-theme="light"] tbody tr.row-changed {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+[data-theme="light"] tbody tr.row-changed:hover {
+    background-color: rgba(255, 193, 7, 0.3) !important;
 }
 
 /* Red highlighting for error rows (relocation failed, etc.) */
@@ -67,15 +125,28 @@ tbody tr.row-error:hover {
     background-color: rgba(244, 33, 46, 0.15) !important;
 }
 
+[data-theme="light"] tbody tr.row-error {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+}
+
+[data-theme="light"] tbody tr.row-error:hover {
+    background-color: rgba(220, 53, 69, 0.25) !important;
+}
+
 /* Relocated form badge */
 .badge-relocated {
+    background-color: var(--warning) !important;
+    color: #1a1a1a !important;
+}
+
+[data-theme="light"] .badge-relocated {
     background-color: #ff9800 !important;
     color: white !important;
 }
 
 /* Warning button style */
 .btn-warning {
-    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+    background: linear-gradient(135deg, var(--warning) 0%, #ffb300 100%);
     color: #1a1a1a;
     border: none;
 }
@@ -87,7 +158,7 @@ tbody tr.row-error:hover {
 
 /* Success button style */
 .btn-success {
-    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    background: linear-gradient(135deg, var(--success) 0%, #38a169 100%);
     color: white;
     border: none;
 }
@@ -97,10 +168,23 @@ tbody tr.row-error:hover {
     transform: translateY(-1px);
 }
 
+[data-theme="light"] .btn-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+}
+
+[data-theme="light"] .btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+}
+
 /* Error badge */
 .badge-error {
-    background-color: #fc8181 !important;
-    color: #1a1a1a !important;
+    background-color: rgba(244, 33, 46, 0.2) !important;
+    color: var(--error) !important;
+}
+
+[data-theme="light"] .badge-error {
+    background-color: rgba(220, 53, 69, 0.2) !important;
+    color: #dc3545 !important;
 }
 
 /* Badge animations */
@@ -144,11 +228,88 @@ table th, table td {
     th, td {
         padding: 8px 12px;
     }
+    
+    .theme-toggle {
+        padding: 6px 10px;
+        font-size: 1rem;
+    }
+    
+    .api-meter {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
 }
+
+/* Search input styling */
+.search-input {
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    min-width: 200px;
+    transition: border-color 0.2s ease, outline 0.2s ease;
+}
+
+.search-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    border-color: var(--accent);
+}
+
+.search-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* Light theme specific adjustments */
+[data-theme="light"] .badge-success {
+    background: rgba(25, 135, 84, 0.15);
+    color: #198754;
+}
+
+[data-theme="light"] .badge-warning {
+    background: rgba(255, 193, 7, 0.15);
+    color: #cc8000;
+}
+
+[data-theme="light"] .badge-error {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+[data-theme="light"] .badge-info {
+    background: rgba(13, 110, 253, 0.15);
+    color: #0d6efd;
+}
+
+[data-theme="light"] .diff-preview {
+    background: #f8f9fa;
+}
+
+[data-theme="light"] code {
+    background: var(--bg-tertiary);
+}
+
+/* Accessibility - Screen reader only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Remove heavy rotation animation for performance */
 
 /* Print styles */
 @media print {
-    header, footer, .btn {
+    header, footer, .btn, .theme-toggle {
         display: none;
     }
     

@@ -222,9 +222,6 @@
                     <div style="font-size: 0.8rem; color: var(--text-primary); margin-bottom: 6px;">
                         Form is inaccessible at the original URL. Relocation search could not confirm the form at a new location.
                     </div>
-                    {% if change.diff_summary %}
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">{{ change.diff_summary }}</div>
-                    {% endif %}
                     {% if relocation_near_misses and relocation_near_misses.candidates %}
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(244, 33, 46, 0.3);">
                         <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">🔗 Recommended links to explore (potential new location)</div>
@@ -247,7 +244,7 @@
                 </div>
                 {% endif %}
                 
-                {% if change.diff_summary %}
+                {% if change.diff_summary and change.change_type != 'relocation_failed' %}
                 <div class="diff-preview" style="margin-top: 12px;">{{ change.diff_summary[:500] }}{% if change.diff_summary|length > 500 %}...{% endif %}</div>
                 {% endif %}
                 

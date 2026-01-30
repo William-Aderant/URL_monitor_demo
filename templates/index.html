@@ -222,17 +222,6 @@
                                 <div style="margin-top: 4px; font-size: 0.65rem; color: var(--error);">
                                     🔍 Form inaccessible
                                 </div>
-                                {% if item.relocation_near_misses and item.relocation_near_misses.candidates %}
-                                <div style="margin-top: 6px; font-size: 0.65rem;">
-                                    <span style="color: var(--text-primary); font-weight: 600;">🔗 Recommended links:</span>
-                                    <ul style="margin: 4px 0 0 14px; padding: 0;">
-                                        {% for c in item.relocation_near_misses.candidates[:3] %}
-                                        <li style="margin-bottom: 2px;"><a href="{{ c.pdf_url }}" target="_blank" rel="noopener" style="color: var(--accent); word-break: break-all;">{{ c.pdf_url[:60] }}{% if c.pdf_url|length > 60 %}...{% endif %}</a>{% if c.similarity_score is defined %} ({{ "%.1f"|format(c.similarity_score) }}%){% endif %}</li>
-                                        {% endfor %}
-                                    </ul>
-                                    <a href="/url/{{ item.url.id }}" style="font-size: 0.65rem; color: var(--accent); margin-top: 4px; display: inline-block;">View URL for all recommendations →</a>
-                                </div>
-                                {% endif %}
                             {% else %}
                                 <span class="badge badge-warning">{{ item.recent_change.change_type|replace('_', ' ')|title }}</span>
                             {% endif %}

@@ -17,12 +17,14 @@ Usage:
 """
 
 import argparse
+import json
 import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
 import structlog
 
@@ -373,86 +375,116 @@ class MonitoringOrchestrator:
                             print(f"  ❌ New form inaccessible (relocation search skipped for new forms)")
                             return False
                     
-                    # Only try relocation search if form has been successfully downloaded before
+                    # Relocation via PDF similarity search (404: find same form by content)
+                    failed_url = pdf_url
                     logger.info(
-                        "Download failed, checking for relocated form",
-                        url=pdf_url,
+                        "Download failed (404), running similarity search for relocated form",
+                        url=failed_url,
                         url_id=monitored_url.id
                     )
-                    print(f"  🔍 Searching for relocated form...")
-                    
-                    # Get previous version's form number for matching
-                    form_number = previous_version.form_number if previous_version else None
-                    form_title = previous_version.formatted_title if previous_version else None
-                    
-                    # Also try to extract form number from the URL if we don't have one
-                    if not form_number:
-                        form_number = self.link_crawler.extract_form_number(pdf_url)
-                    
-                    if form_number:
-                        print(f"     Looking for form: {form_number}")
-                    
-                    # Try to find relocated form with enhanced multi-level crawler
-                    crawl_result = self.link_crawler.find_relocated_form(
-                        original_url=pdf_url,
-                        form_number=form_number,
-                        form_title=form_title,
-                        parent_url=monitored_url.parent_page_url
-                    )
-                    
-                    if crawl_result.success and crawl_result.matched_url:
-                        logger.info(
-                            "Found relocated form",
-                            new_url=crawl_result.matched_url,
-                            reason=crawl_result.match_reason,
-                            pages_crawled=crawl_result.pages_crawled
-                        )
-                        
-                        print(f"  ✅ Found relocated form!")
-                        print(f"     New URL: {crawl_result.matched_url}")
-                        print(f"     Reason: {crawl_result.match_reason}")
-                        if crawl_result.pages_crawled:
-                            print(f"     Pages searched: {crawl_result.pages_crawled}")
-                        
-                        # Try downloading from new URL
-                        relocated_from_url = pdf_url
-                        pdf_url = crawl_result.matched_url
-                        download_result = self.downloader.download(pdf_url, original_pdf)
-                        
-                        if download_result.success:
-                            # Update the monitored URL to new location
-                            monitored_url.url = pdf_url
-                            logger.info("Updated monitored URL to new location", new_url=pdf_url)
-                    elif crawl_result.success and crawl_result.pdf_links:
-                        # Found PDFs but no match - log for manual review
-                        print(f"  ❌ No automatic match found")
-                        print(f"     PDFs found: {len(crawl_result.pdf_links)}")
-                        print(f"     Pages searched: {crawl_result.pages_crawled}")
-                        logger.warning(
-                            "No matching form found in crawl",
-                            original_url=pdf_url,
-                            pdfs_found=len(crawl_result.pdf_links),
-                            pages_crawled=crawl_result.pages_crawled
-                        )
+                    logger.info("Searching for relocated form (similarity search)", url_id=monitored_url.id)
+
+                    reference_pdf_path = self.version_manager.get_original_pdf_path(db, previous_version.id)
+                    website_url = monitored_url.parent_page_url
+                    if not website_url:
+                        p = urlparse(failed_url)
+                        path_parts = p.path.rstrip("/").split("/")
+                        parent_path = "/".join(path_parts[:-1]) + "/" if len(path_parts) > 1 else "/"
+                        website_url = f"{p.scheme}://{p.netloc}{parent_path}"
+
+                    matches: list = []
+                    if reference_pdf_path and reference_pdf_path.exists():
+                        try:
+                            from pdf_similarity_search import search_pdf
+                            logger.info("SEARCHING PDF") 
+                            matches, _near_misses, _search_stats = search_pdf(
+                                website_url,
+                                str(reference_pdf_path),
+                                similarity_threshold=90.0,
+                                max_results=3,
+                                max_pages=100,
+                                max_depth=5,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "Similarity search failed",
+                                url_id=monitored_url.id,
+                                error=str(e),
+                                exc_info=True
+                            )
                     else:
-                        print(f"  ❌ Crawl failed: {crawl_result.error}")
-                    
+                        logger.warning(
+                            "No reference PDF path for similarity search",
+                            url_id=monitored_url.id
+                        )
+
+                    # 100% similar (identical): update stored URL and continue
+                    exact_match = next((m for m in matches if m.similarity_score >= 99.5), None)
+                    if exact_match:
+                        pdf_url = exact_match.pdf_url
+                        download_result = self.downloader.download(pdf_url, original_pdf)
+                        if download_result.success:
+                            relocated_from_url = failed_url
+                            monitored_url.url = pdf_url
+                            logger.info(
+                                "Updated monitored URL to 100%% similar relocated form",
+                                new_url=pdf_url,
+                                url_id=monitored_url.id
+                            )
+                            logger.info(
+                                "Found 100%% identical form at new URL",
+                                new_url=pdf_url,
+                                url_id=monitored_url.id
+                            )
+                            # Fall through; download_result.success is True so we skip relocation_failed below
+                        else:
+                            logger.warning(
+                                "Download failed for 100%% match URL",
+                                url=pdf_url,
+                                error=download_result.error
+                            )
+
                     if not download_result.success:
+                        # Store up to 3 candidates >= 90% in local JSON (for manual review)
+                        candidates = matches[:3]
+                        if candidates:
+                            rel_dir = Path("data") / "relocation_near_misses"
+                            rel_dir.mkdir(parents=True, exist_ok=True)
+                            out_path = rel_dir / f"url_{monitored_url.id}.json"
+                            payload = {
+                                "monitored_url_id": monitored_url.id,
+                                "original_url": failed_url,
+                                "timestamp": datetime.utcnow().isoformat() + "Z",
+                                "candidates": [
+                                    {"pdf_url": m.pdf_url, "similarity_score": m.similarity_score}
+                                    for m in candidates
+                                ],
+                            }
+                            with open(out_path, "w") as f:
+                                json.dump(payload, f, indent=2)
+                            logger.info(
+                                "Wrote relocation near-misses",
+                                path=str(out_path),
+                                candidate_count=len(candidates),
+                                url_id=monitored_url.id
+                            )
+
                         logger.error(
                             "Failed to download PDF after relocation search",
                             url=pdf_url,
                             error=download_result.error
                         )
-                        
-                        # Create a change log entry for failed relocation
                         if previous_version:
-                            from db.models import ChangeLog
                             relocation_failed_log = ChangeLog(
                                 monitored_url_id=monitored_url.id,
                                 previous_version_id=previous_version.id,
-                                new_version_id=previous_version.id,  # Use same version since no new version was created
+                                new_version_id=previous_version.id,
                                 change_type="relocation_failed",
-                                diff_summary=f"Form became inaccessible at {pdf_url}. Relocation search {'found PDFs but no match' if (crawl_result.success and crawl_result.pdf_links) else f'failed: {crawl_result.error if crawl_result.error else "no PDFs found"}'}.",
+                                diff_summary=(
+                                    f"Form became inaccessible at {failed_url}. "
+                                    f"Similarity search: {len(matches)} candidate(s) >= 90%%; "
+                                    f"{'saved to JSON' if candidates else 'no candidates found'}."
+                                ),
                                 pdf_hash_changed=False,
                                 text_hash_changed=False,
                                 review_status="pending",
@@ -461,14 +493,11 @@ class MonitoringOrchestrator:
                             db.add(relocation_failed_log)
                             monitored_url.last_change_at = datetime.utcnow()
                             db.commit()
-                            
                             logger.info(
                                 "Relocation failure logged",
                                 change_log_id=relocation_failed_log.id,
                                 url_id=monitored_url.id
                             )
-                            print(f"  📝 Relocation failure logged (Change ID: {relocation_failed_log.id})")
-                        
                         return False
                 
                 logger.info(

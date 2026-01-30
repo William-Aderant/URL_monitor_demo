@@ -385,12 +385,8 @@ class MonitoringOrchestrator:
                     logger.info("Searching for relocated form (similarity search)", url_id=monitored_url.id)
 
                     reference_pdf_path = self.version_manager.get_original_pdf_path(db, previous_version.id)
-                    website_url = monitored_url.parent_page_url
-                    if not website_url:
-                        p = urlparse(failed_url)
-                        path_parts = p.path.rstrip("/").split("/")
-                        parent_path = "/".join(path_parts[:-1]) + "/" if len(path_parts) > 1 else "/"
-                        website_url = f"{p.scheme}://{p.netloc}{parent_path}"
+                    # Use the URL that returned 404 as the crawl start (crawler also seeds from domain root)
+                    website_url = failed_url
 
                     matches: list = []
                     if reference_pdf_path and reference_pdf_path.exists():

@@ -400,10 +400,10 @@ class MonitoringOrchestrator:
                             matches, _near_misses, _search_stats = search_pdf(
                                 website_url,
                                 str(reference_pdf_path),
-                                similarity_threshold=90.0,
+                                similarity_threshold=85.0,
                                 max_results=3,
-                                max_pages=100,
-                                max_depth=5,
+                                max_pages=250,
+                                max_depth=10,
                             )
                         except Exception as e:
                             logger.warning(
@@ -419,7 +419,7 @@ class MonitoringOrchestrator:
                         )
 
                     # 100% similar (identical): update stored URL and continue
-                    exact_match = next((m for m in matches if m.similarity_score >= 99.5), None)
+                    exact_match = next((m for m in matches if m.similarity_score == 100), None)
                     if exact_match:
                         pdf_url = exact_match.pdf_url
                         download_result = self.downloader.download(pdf_url, original_pdf)
@@ -445,7 +445,7 @@ class MonitoringOrchestrator:
                             )
 
                     if not download_result.success:
-                        # Store up to 3 candidates >= 90% in local JSON (for manual review)
+                        # Store up to 3 candidates >=85% in local JSON (for manual review)
                         candidates = matches[:3]
                         if candidates:
                             rel_dir = Path("data") / "relocation_near_misses"
@@ -482,7 +482,7 @@ class MonitoringOrchestrator:
                                 change_type="relocation_failed",
                                 diff_summary=(
                                     f"Form became inaccessible at {failed_url}. "
-                                    f"Similarity search: {len(matches)} candidate(s) >= 90%%; "
+                                    f"Similarity search: {len(matches)} candidate(s) >=85%%; "
                                     f"{'saved to JSON' if candidates else 'no candidates found'}."
                                 ),
                                 pdf_hash_changed=False,

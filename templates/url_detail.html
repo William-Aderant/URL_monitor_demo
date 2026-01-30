@@ -150,7 +150,7 @@
             <div class="{% if change.change_type != 'new' %}change-item-changed{% endif %}" style="{% if not loop.last %}border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 16px;{% endif %} {% if change.change_type != 'new' %}background: rgba(255, 255, 0, 0.1); padding: 12px; border-radius: 8px; border-left: 4px solid #ffd700;{% endif %}">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
-                        <span class="badge {% if change.change_type == 'new' %}badge-info{% elif change.change_type == 'text_changed' %}badge-warning{% else %}badge-neutral{% endif %}">
+                        <span class="badge {% if change.change_type == 'new' %}badge-info{% elif change.change_type == 'text_changed' %}badge-warning{% elif change.change_type == 'relocation_failed' %}badge-error{% else %}badge-neutral{% endif %}">
                             {{ change.change_type|replace('_', ' ')|title }}
                         </span>
                         {% if change.relocated_from_url %}
@@ -215,7 +215,32 @@
                     </div>
                 </div>
                 {% endif %}
-                
+
+                {% if change.change_type == 'relocation_failed' %}
+                <div style="margin-top: 12px; padding: 10px; background: rgba(244, 33, 46, 0.12); border-left: 4px solid var(--error); border-radius: 6px;">
+                    <div style="font-weight: 600; color: var(--error); margin-bottom: 6px; font-size: 0.875rem;">⚠️ Relocation Failed</div>
+                    <div style="font-size: 0.8rem; color: var(--text-primary); margin-bottom: 6px;">
+                        Form is inaccessible at the original URL. Relocation search could not confirm the form at a new location.
+                    </div>
+                    {% if change.diff_summary %}
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">{{ change.diff_summary }}</div>
+                    {% endif %}
+                    {% if relocation_near_misses and relocation_near_misses.candidates %}
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(244, 33, 46, 0.3);">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">🔗 Recommended links to explore (potential new location)</div>
+                        <ul style="margin: 0; padding-left: 18px; font-size: 0.8rem;">
+                            {% for c in relocation_near_misses.candidates %}
+                            <li style="margin-bottom: 6px;">
+                                <a href="{{ c.pdf_url }}" target="_blank" rel="noopener" class="url-link" style="color: var(--accent); word-break: break-all;">{{ c.pdf_url }}</a>
+                                {% if c.similarity_score is defined %}<span style="color: var(--text-secondary);"> ({{ "%.1f"|format(c.similarity_score) }}% similar)</span>{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 {% if change.affected_pages %}
                 <div style="margin-top: 8px; font-size: 0.875rem; color: var(--text-secondary);">
                     Affected pages: {{ change.affected_pages|join(', ') }}

@@ -5,6 +5,8 @@ Tables:
 - MonitoredURL: Registry of URLs to monitor
 - PDFVersion: Stored versions of PDFs with hashes
 - ChangeLog: Record of detected changes
+- MonitoringCycle: Track monitoring cycle execution for audit
+- ScheduleConfig: User-configurable schedule settings
 """
 
 from datetime import datetime
@@ -14,6 +16,113 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from db.database import Base
+
+
+class ScheduleConfig(Base):
+    """
+    User-configurable schedule settings for automated monitoring.
+    Only one active configuration should exist at a time.
+    """
+    __tablename__ = "schedule_config"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    enabled = Column(Boolean, default=True)
+    schedule_type = Column(String(50), default="daily")  # daily, weekly, custom
+    
+    # Daily schedule
+    daily_time = Column(String(5), default="02:00")  # HH:MM format (e.g., "02:00")
+    
+    # Weekly schedule
+    weekly_days = Column(JSON, default=list)  # List of weekday names ["monday", "wednesday", "friday"]
+    weekly_time = Column(String(5), default="02:00")
+    
+    # Custom cron
+    cron_expression = Column(String(100), nullable=True)
+    
+    # Timezone
+    timezone = Column(String(50), default="UTC")
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self) -> str:
+        return f"<ScheduleConfig(id={self.id}, type='{self.schedule_type}', enabled={self.enabled})>"
+
+
+class MonitoringCycle(Base):
+    """
+    Track each monitoring cycle execution for audit metrics.
+    Records when cycles ran, how long they took, and their outcomes.
+    """
+    __tablename__ = "monitoring_cycles"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+    status = Column(String(50), default="running")  # running, completed, failed, partial
+    
+    # Cycle statistics
+    total_urls_checked = Column(Integer, default=0)
+    successful_checks = Column(Integer, default=0)
+    failed_checks = Column(Integer, default=0)
+    changes_detected = Column(Integer, default=0)
+    skipped_unchanged = Column(Integer, default=0)
+    
+    # Download and approval tracking
+    downloads_automated = Column(Integer, default=0)  # Downloads without manual intervention
+    manual_interventions = Column(Integer, default=0)
+    
+    # Configuration snapshot
+    triggered_by = Column(String(50), default="manual")  # scheduled, manual, api
+    schedule_config_snapshot = Column(JSON, nullable=True)  # Snapshot of schedule settings at run time
+    
+    # Error tracking
+    error_log = Column(Text, nullable=True)  # Aggregated errors
+    error_count = Column(Integer, default=0)
+    
+    # Relationships
+    url_results = relationship("CycleURLResult", back_populates="cycle", cascade="all, delete-orphan")
+    
+    def __repr__(self) -> str:
+        return f"<MonitoringCycle(id={self.id}, status='{self.status}', started={self.started_at})>"
+
+
+class CycleURLResult(Base):
+    """
+    Individual URL check results within a monitoring cycle.
+    Tracks success/failure and any changes detected per URL.
+    """
+    __tablename__ = "cycle_url_results"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cycle_id = Column(Integer, ForeignKey("monitoring_cycles.id"), nullable=False)
+    monitored_url_id = Column(Integer, ForeignKey("monitored_urls.id"), nullable=False)
+    
+    # Result
+    status = Column(String(50), nullable=False)  # success, failed, skipped, changed
+    error_message = Column(Text, nullable=True)
+    
+    # Timing
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    
+    # Detection details
+    tier_reached = Column(Integer, nullable=True)  # 1=headers, 2=quick_hash, 3=full_download
+    change_detected = Column(Boolean, default=False)
+    change_log_id = Column(Integer, ForeignKey("change_logs.id"), nullable=True)
+    
+    # Relationships
+    cycle = relationship("MonitoringCycle", back_populates="url_results")
+    monitored_url = relationship("MonitoredURL")
+    change_log = relationship("ChangeLog")
+    
+    def __repr__(self) -> str:
+        return f"<CycleURLResult(cycle={self.cycle_id}, url={self.monitored_url_id}, status='{self.status}')>"
 
 
 class MonitoredURL(Base):
@@ -47,6 +156,11 @@ class MonitoredURL(Base):
     # State and domain organization
     state = Column(String(50), nullable=True)  # e.g., "Alaska", "California"
     domain_category = Column(String(100), nullable=True)  # e.g., "courts.ca.gov", "insurance.ca.gov"
+    
+    # Bulk import tracking
+    import_batch_id = Column(String(100), nullable=True)  # Track bulk uploads together
+    import_source = Column(String(50), nullable=True)  # csv, txt, manual, api
+    imported_at = Column(DateTime, nullable=True)  # When bulk imported
     
     # Relationships
     versions = relationship("PDFVersion", back_populates="monitored_url", cascade="all, delete-orphan")
@@ -200,6 +314,21 @@ class ChangeLog(Base):
     classification_override = Column(String(50), nullable=True)  # Human override of AI classification
     override_reason = Column(Text, nullable=True)  # Reason for override
     
+    # Download tracking
+    download_count = Column(Integer, default=0)  # Number of times downloaded
+    first_downloaded_at = Column(DateTime, nullable=True)  # First download timestamp
+    last_downloaded_at = Column(DateTime, nullable=True)  # Most recent download timestamp
+    downloaded_filename = Column(String(512), nullable=True)  # Filename used for download
+    
+    # Manual intervention tracking
+    manual_intervention_required = Column(Boolean, default=False)  # Was manual intervention needed?
+    intervention_type = Column(String(100), nullable=True)  # title_edit, url_edit, manual_detection, etc.
+    intervention_notes = Column(Text, nullable=True)  # Details about the intervention
+    intervention_at = Column(DateTime, nullable=True)  # When intervention occurred
+    
+    # Link to monitoring cycle that detected this change
+    cycle_id = Column(Integer, ForeignKey("monitoring_cycles.id"), nullable=True)
+    
     # Timestamps
     detected_at = Column(DateTime, default=datetime.utcnow)
     
@@ -207,6 +336,7 @@ class ChangeLog(Base):
     monitored_url = relationship("MonitoredURL", back_populates="changes")
     previous_version = relationship("PDFVersion", foreign_keys=[previous_version_id])
     new_version = relationship("PDFVersion", foreign_keys=[new_version_id])
+    monitoring_cycle = relationship("MonitoringCycle")
     
     def __repr__(self) -> str:
         return f"<ChangeLog(id={self.id}, url_id={self.monitored_url_id}, type='{self.change_type}')>"

@@ -20,8 +20,11 @@ from db.models import MonitoredURL, PDFVersion, ChangeLog
 from api.schemas import (
     MonitoredURLCreate,
     MonitoredURLResponse,
+    MonitoredURLUpdate,
+    MonitoredURLFullResponse,
     PDFVersionResponse,
     ChangeLogResponse,
+    ChangeFullResponse,
     MonitoringRunRequest,
     MonitoringRunResponse,
     StatusResponse,
@@ -29,7 +32,20 @@ from api.schemas import (
     ReviewResponse,
     BulkReviewRequest,
     BulkReviewResponse,
-    ClassificationOverrideRequest
+    ClassificationOverrideRequest,
+    ScheduleConfigUpdate,
+    ScheduleConfigResponse,
+    SchedulerStatusResponse,
+    BulkDeleteRequest,
+    BulkDeleteResponse,
+    BulkUploadResponse,
+    ChangeApprovalRequest,
+    ChangeApprovalResponse,
+    ManualInterventionRequest,
+    MonitoringCycleResponse,
+    CycleURLResultResponse,
+    AuditStatsResponse,
+    AuditTrendsResponse
 )
 from storage.file_store import FileStore
 from storage.version_manager import VersionManager
@@ -1630,4 +1646,942 @@ async def get_kendra_status():
         "search_enabled": settings.KENDRA_SEARCH_ENABLED,
         "index_status": status
     }
+
+
+# ============================================================================
+# Schedule Configuration API Routes
+# ============================================================================
+
+@router.get("/api/schedule", response_model=SchedulerStatusResponse)
+async def get_schedule_status():
+    """Get current scheduler status and configuration."""
+    from services.scheduler import get_scheduler_status
+    return get_scheduler_status()
+
+
+@router.put("/api/schedule", response_model=ScheduleConfigResponse)
+async def update_schedule(
+    config: ScheduleConfigUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update schedule configuration."""
+    from services.scheduler import update_schedule_config, get_schedule_config
+    
+    updated = update_schedule_config(
+        db=db,
+        enabled=config.enabled,
+        schedule_type=config.schedule_type,
+        daily_time=config.daily_time,
+        weekly_days=config.weekly_days,
+        weekly_time=config.weekly_time,
+        cron_expression=config.cron_expression,
+        timezone=config.timezone
+    )
+    
+    return ScheduleConfigResponse(
+        id=updated.id,
+        enabled=updated.enabled,
+        schedule_type=updated.schedule_type,
+        daily_time=updated.daily_time,
+        weekly_days=updated.weekly_days,
+        weekly_time=updated.weekly_time,
+        cron_expression=updated.cron_expression,
+        timezone=updated.timezone or "UTC",
+        last_run_at=updated.last_run_at,
+        next_run_at=updated.next_run_at
+    )
+
+
+@router.post("/api/monitor/run-now")
+async def trigger_manual_cycle(db: Session = Depends(get_db)):
+    """Trigger a manual monitoring cycle."""
+    from services.scheduler import trigger_manual_cycle
+    
+    cycle_id = trigger_manual_cycle(triggered_by="api")
+    
+    return {
+        "success": True,
+        "cycle_id": cycle_id,
+        "message": "Monitoring cycle started in background"
+    }
+
+
+# ============================================================================
+# URL Management API Routes (Extended)
+# ============================================================================
+
+@router.put("/api/urls/{url_id}", response_model=MonitoredURLFullResponse)
+async def update_url(
+    url_id: int,
+    update: MonitoredURLUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a monitored URL."""
+    from db.models import MonitoredURL, PDFVersion, ChangeLog
+    
+    url = db.query(MonitoredURL).filter(MonitoredURL.id == url_id).first()
+    if not url:
+        raise HTTPException(status_code=404, detail="URL not found")
+    
+    # Update fields if provided
+    if update.name is not None:
+        url.name = update.name
+    if update.url is not None:
+        # Check for duplicate
+        existing = db.query(MonitoredURL).filter(
+            MonitoredURL.url == update.url,
+            MonitoredURL.id != url_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="URL already exists")
+        url.url = update.url
+    if update.description is not None:
+        url.description = update.description
+    if update.state is not None:
+        url.state = update.state
+    if update.domain_category is not None:
+        url.domain_category = update.domain_category
+    if update.enabled is not None:
+        url.enabled = update.enabled
+    if update.check_interval_hours is not None:
+        url.check_interval_hours = update.check_interval_hours
+    
+    db.commit()
+    db.refresh(url)
+    
+    # Get counts
+    version_count = db.query(PDFVersion).filter(
+        PDFVersion.monitored_url_id == url.id
+    ).count()
+    
+    pending_changes = db.query(ChangeLog).filter(
+        ChangeLog.monitored_url_id == url.id,
+        ChangeLog.review_status == "pending"
+    ).count()
+    
+    return MonitoredURLFullResponse(
+        id=url.id,
+        name=url.name,
+        url=url.url,
+        description=url.description,
+        check_interval_hours=url.check_interval_hours,
+        enabled=url.enabled,
+        state=url.state,
+        domain_category=url.domain_category,
+        created_at=url.created_at,
+        updated_at=url.updated_at,
+        last_checked_at=url.last_checked_at,
+        last_change_at=url.last_change_at,
+        version_count=version_count,
+        pending_changes=pending_changes,
+        import_batch_id=url.import_batch_id,
+        import_source=url.import_source
+    )
+
+
+@router.post("/api/urls/bulk-delete", response_model=BulkDeleteResponse)
+async def bulk_delete_urls(
+    request: BulkDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """Delete multiple URLs."""
+    from db.models import MonitoredURL
+    
+    deleted = 0
+    failed = 0
+    details = []
+    
+    for url_id in request.url_ids:
+        url = db.query(MonitoredURL).filter(MonitoredURL.id == url_id).first()
+        if not url:
+            failed += 1
+            details.append({"url_id": url_id, "success": False, "error": "Not found"})
+            continue
+        
+        try:
+            # Delete files
+            versions = file_store.list_versions(url_id)
+            for version_id in versions:
+                file_store.delete_version(url_id, version_id)
+            
+            db.delete(url)
+            deleted += 1
+            details.append({"url_id": url_id, "success": True})
+        except Exception as e:
+            failed += 1
+            details.append({"url_id": url_id, "success": False, "error": str(e)})
+    
+    db.commit()
+    
+    return BulkDeleteResponse(
+        success=failed == 0,
+        deleted=deleted,
+        failed=failed,
+        details=details
+    )
+
+
+@router.post("/api/urls/bulk-upload", response_model=BulkUploadResponse)
+async def bulk_upload_urls(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk upload URLs from CSV or TXT file.
+    
+    Accepts multipart form data with a file field named 'file'.
+    """
+    from services.bulk_importer import bulk_importer
+    
+    # Parse multipart form
+    form = await request.form()
+    file = form.get("file")
+    
+    if not file:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Read file content
+    content = await file.read()
+    content_str = content.decode("utf-8")
+    
+    # Determine file type
+    filename = file.filename.lower() if file.filename else ""
+    if filename.endswith(".csv"):
+        file_type = "csv"
+    elif filename.endswith(".txt"):
+        file_type = "txt"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Use .csv or .txt"
+        )
+    
+    # Import URLs
+    result = bulk_importer.import_from_content(content_str, file_type, db, source="upload")
+    
+    return BulkUploadResponse(
+        success=result.success,
+        batch_id=result.batch_id,
+        total_rows=result.total_rows,
+        successful=result.successful,
+        failed=result.failed,
+        duplicates=result.duplicates,
+        results=[{
+            "url": r.url,
+            "success": r.success,
+            "error": r.error,
+            "is_duplicate": r.is_duplicate,
+            "row_number": r.row_number
+        } for r in result.results],
+        error=result.error
+    )
+
+
+@router.get("/api/urls/upload-template")
+async def get_upload_template():
+    """Get CSV template for bulk upload."""
+    from services.bulk_importer import bulk_importer
+    from fastapi.responses import Response
+    
+    template = bulk_importer.get_csv_template()
+    
+    return Response(
+        content=template,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=url_upload_template.csv"
+        }
+    )
+
+
+@router.get("/api/urls/upload-guide")
+async def get_upload_guide():
+    """Get format guide for bulk uploads."""
+    from services.bulk_importer import bulk_importer
+    
+    return {
+        "guide": bulk_importer.get_format_guide(),
+        "csv_headers": ["URL", "Title", "State", "Jurisdiction"],
+        "required_fields": ["URL", "State", "Jurisdiction"],
+        "optional_fields": ["Title"],
+        "max_file_size_mb": settings.BULK_UPLOAD_MAX_SIZE_MB,
+        "max_urls_per_upload": settings.BULK_UPLOAD_MAX_URLS
+    }
+
+
+# ============================================================================
+# Change Download and Approval API Routes
+# ============================================================================
+
+@router.get("/api/changes/{change_id}/download")
+async def download_change_pdf(
+    change_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Download the PDF for a detected change.
+    
+    Filename format: "{TITLE} {FORM_NUMBER}.pdf"
+    Example: "Petition for Name Change MC-031.pdf"
+    """
+    from db.models import ChangeLog, PDFVersion
+    import re
+    
+    # Get change
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    # Get the new version
+    version = db.query(PDFVersion).filter(PDFVersion.id == change.new_version_id).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # Get PDF path
+    pdf_path = version_manager.get_original_pdf_path(db, version.id)
+    if not pdf_path or not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    # Generate filename: "TITLE {FORM_NUMBER}.pdf"
+    title = version.formatted_title or "Untitled"
+    form_number = version.form_number
+    
+    if form_number:
+        filename = f"{title} {form_number}.pdf"
+    else:
+        filename = f"{title}.pdf"
+    
+    # Sanitize filename - remove invalid characters
+    invalid_chars = settings.DOWNLOAD_FILENAME_INVALID_CHARS
+    for char in invalid_chars:
+        filename = filename.replace(char, "_")
+    
+    # Limit length
+    max_length = settings.DOWNLOAD_FILENAME_MAX_LENGTH
+    if len(filename) > max_length:
+        # Keep extension
+        filename = filename[:max_length-4] + ".pdf"
+    
+    # Update download tracking
+    change.download_count = (change.download_count or 0) + 1
+    if not change.first_downloaded_at:
+        change.first_downloaded_at = datetime.utcnow()
+    change.last_downloaded_at = datetime.utcnow()
+    change.downloaded_filename = filename
+    db.commit()
+    
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=filename
+    )
+
+
+@router.post("/api/changes/{change_id}/approve", response_model=ChangeApprovalResponse)
+async def approve_change_with_workflow(
+    change_id: int,
+    approval: ChangeApprovalRequest = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Approve a change after download.
+    
+    Requires the change to have been downloaded at least once.
+    """
+    from db.models import ChangeLog, MonitoringCycle
+    
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    # Check if downloaded
+    if not change.download_count or change.download_count == 0:
+        return ChangeApprovalResponse(
+            success=False,
+            change_id=change_id,
+            review_status=change.review_status,
+            download_required=True,
+            message="Change must be downloaded before approval"
+        )
+    
+    # Update approval status
+    change.review_status = "approved"
+    change.reviewed = True
+    change.reviewed_at = datetime.utcnow()
+    change.reviewed_by = approval.reviewed_by if approval else "system"
+    change.review_notes = approval.notes if approval else None
+    
+    # If no manual intervention was required, increment automated count on cycle
+    if not change.manual_intervention_required and change.cycle_id:
+        cycle = db.query(MonitoringCycle).filter(
+            MonitoringCycle.id == change.cycle_id
+        ).first()
+        if cycle:
+            cycle.downloads_automated = (cycle.downloads_automated or 0) + 1
+    
+    db.commit()
+    
+    return ChangeApprovalResponse(
+        success=True,
+        change_id=change_id,
+        review_status="approved",
+        reviewed_at=change.reviewed_at,
+        download_required=False,
+        message="Change approved successfully"
+    )
+
+
+@router.post("/api/changes/{change_id}/intervention")
+async def record_manual_intervention(
+    change_id: int,
+    intervention: ManualInterventionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Record a manual intervention on a change.
+    
+    Called when user manually edits title, URL, or performs other manual actions.
+    """
+    from db.models import ChangeLog, MonitoringCycle
+    
+    change = db.query(ChangeLog).filter(ChangeLog.id == change_id).first()
+    if not change:
+        raise HTTPException(status_code=404, detail="Change not found")
+    
+    # Update intervention tracking
+    change.manual_intervention_required = True
+    change.intervention_type = intervention.intervention_type
+    change.intervention_notes = intervention.notes
+    change.intervention_at = datetime.utcnow()
+    
+    # Increment manual interventions on the cycle
+    if change.cycle_id:
+        cycle = db.query(MonitoringCycle).filter(
+            MonitoringCycle.id == change.cycle_id
+        ).first()
+        if cycle:
+            cycle.manual_interventions = (cycle.manual_interventions or 0) + 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "change_id": change_id,
+        "intervention_type": intervention.intervention_type,
+        "message": "Manual intervention recorded"
+    }
+
+
+@router.get("/api/changes-full", response_model=list[ChangeFullResponse])
+async def list_changes_full(
+    status: Optional[str] = None,
+    change_type: Optional[str] = None,
+    state: Optional[str] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    List changes with full details including download info.
+    
+    Used by the Change Review page.
+    """
+    from db.models import ChangeLog, MonitoredURL, PDFVersion
+    
+    query = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(MonitoredURL.enabled == True)
+    
+    if status and status != "all":
+        query = query.filter(ChangeLog.review_status == status)
+    
+    if change_type:
+        query = query.filter(ChangeLog.change_type == change_type)
+    
+    if state:
+        query = query.filter(MonitoredURL.state == state)
+    
+    changes = query.order_by(ChangeLog.detected_at.desc()).limit(limit).all()
+    
+    result = []
+    for change in changes:
+        url = db.query(MonitoredURL).filter(
+            MonitoredURL.id == change.monitored_url_id
+        ).first()
+        
+        version = db.query(PDFVersion).filter(
+            PDFVersion.id == change.new_version_id
+        ).first()
+        
+        result.append(ChangeFullResponse(
+            id=change.id,
+            monitored_url_id=change.monitored_url_id,
+            url_name=url.name if url else None,
+            url_url=url.url if url else None,
+            previous_version_id=change.previous_version_id,
+            new_version_id=change.new_version_id,
+            change_type=change.change_type,
+            affected_pages=change.affected_pages,
+            diff_summary=change.diff_summary,
+            similarity_score=change.similarity_score,
+            match_type=change.match_type,
+            recommended_action=change.recommended_action,
+            action_confidence=change.action_confidence,
+            action_rationale=change.action_rationale,
+            review_status=change.review_status or "pending",
+            reviewed=change.reviewed or False,
+            reviewed_at=change.reviewed_at,
+            detected_at=change.detected_at,
+            download_count=change.download_count or 0,
+            first_downloaded_at=change.first_downloaded_at,
+            last_downloaded_at=change.last_downloaded_at,
+            downloaded_filename=change.downloaded_filename,
+            manual_intervention_required=change.manual_intervention_required or False,
+            intervention_type=change.intervention_type,
+            formatted_title=version.formatted_title if version else None,
+            form_number=version.form_number if version else None
+        ))
+    
+    return result
+
+
+# ============================================================================
+# Audit and Monitoring Cycle API Routes
+# ============================================================================
+
+@router.get("/api/audit/cycles", response_model=list[MonitoringCycleResponse])
+async def list_monitoring_cycles(
+    limit: int = 50,
+    offset: int = 0,
+    status: Optional[str] = None,
+    triggered_by: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """List monitoring cycles with pagination."""
+    from db.models import MonitoringCycle
+    
+    query = db.query(MonitoringCycle)
+    
+    if status:
+        query = query.filter(MonitoringCycle.status == status)
+    
+    if triggered_by:
+        query = query.filter(MonitoringCycle.triggered_by == triggered_by)
+    
+    cycles = query.order_by(
+        MonitoringCycle.started_at.desc()
+    ).offset(offset).limit(limit).all()
+    
+    return [MonitoringCycleResponse(
+        id=c.id,
+        started_at=c.started_at,
+        completed_at=c.completed_at,
+        duration_seconds=c.duration_seconds,
+        status=c.status,
+        total_urls_checked=c.total_urls_checked or 0,
+        successful_checks=c.successful_checks or 0,
+        failed_checks=c.failed_checks or 0,
+        changes_detected=c.changes_detected or 0,
+        skipped_unchanged=c.skipped_unchanged or 0,
+        downloads_automated=c.downloads_automated or 0,
+        manual_interventions=c.manual_interventions or 0,
+        triggered_by=c.triggered_by or "unknown",
+        error_count=c.error_count or 0
+    ) for c in cycles]
+
+
+@router.get("/api/audit/cycles/{cycle_id}", response_model=MonitoringCycleResponse)
+async def get_monitoring_cycle(
+    cycle_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get details for a specific monitoring cycle."""
+    from db.models import MonitoringCycle
+    
+    cycle = db.query(MonitoringCycle).filter(MonitoringCycle.id == cycle_id).first()
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Cycle not found")
+    
+    return MonitoringCycleResponse(
+        id=cycle.id,
+        started_at=cycle.started_at,
+        completed_at=cycle.completed_at,
+        duration_seconds=cycle.duration_seconds,
+        status=cycle.status,
+        total_urls_checked=cycle.total_urls_checked or 0,
+        successful_checks=cycle.successful_checks or 0,
+        failed_checks=cycle.failed_checks or 0,
+        changes_detected=cycle.changes_detected or 0,
+        skipped_unchanged=cycle.skipped_unchanged or 0,
+        downloads_automated=cycle.downloads_automated or 0,
+        manual_interventions=cycle.manual_interventions or 0,
+        triggered_by=cycle.triggered_by or "unknown",
+        error_count=cycle.error_count or 0
+    )
+
+
+@router.get("/api/audit/cycles/{cycle_id}/results", response_model=list[CycleURLResultResponse])
+async def get_cycle_results(
+    cycle_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get URL-level results for a monitoring cycle."""
+    from db.models import CycleURLResult, MonitoredURL
+    
+    results = db.query(CycleURLResult).filter(
+        CycleURLResult.cycle_id == cycle_id
+    ).all()
+    
+    response = []
+    for r in results:
+        url = db.query(MonitoredURL).filter(
+            MonitoredURL.id == r.monitored_url_id
+        ).first()
+        
+        response.append(CycleURLResultResponse(
+            id=r.id,
+            cycle_id=r.cycle_id,
+            monitored_url_id=r.monitored_url_id,
+            url_name=url.name if url else None,
+            status=r.status,
+            error_message=r.error_message,
+            started_at=r.started_at,
+            completed_at=r.completed_at,
+            duration_ms=r.duration_ms,
+            tier_reached=r.tier_reached,
+            change_detected=r.change_detected or False,
+            change_log_id=r.change_log_id
+        ))
+    
+    return response
+
+
+@router.get("/api/audit/stats", response_model=AuditStatsResponse)
+async def get_audit_stats(db: Session = Depends(get_db)):
+    """Get overall audit statistics."""
+    from db.models import MonitoringCycle, ChangeLog
+    from sqlalchemy import func
+    
+    # Total cycles
+    total_cycles = db.query(MonitoringCycle).count()
+    
+    # Aggregate stats from all cycles
+    stats = db.query(
+        func.sum(MonitoringCycle.changes_detected).label("total_changes"),
+        func.sum(MonitoringCycle.downloads_automated).label("total_automated"),
+        func.sum(MonitoringCycle.manual_interventions).label("total_manual"),
+        func.sum(MonitoringCycle.total_urls_checked).label("total_checked"),
+        func.sum(MonitoringCycle.successful_checks).label("total_success"),
+        func.sum(MonitoringCycle.failed_checks).label("total_failed"),
+        func.avg(MonitoringCycle.duration_seconds).label("avg_duration")
+    ).first()
+    
+    # Cycles by trigger type
+    trigger_counts = db.query(
+        MonitoringCycle.triggered_by,
+        func.count(MonitoringCycle.id).label("count")
+    ).group_by(MonitoringCycle.triggered_by).all()
+    
+    trigger_map = {t: c for t, c in trigger_counts}
+    
+    # Calculate rates
+    total_downloads = (stats.total_automated or 0) + (stats.total_manual or 0)
+    automation_rate = (stats.total_automated or 0) / total_downloads if total_downloads > 0 else 0
+    
+    total_checks = stats.total_checked or 0
+    success_rate = (stats.total_success or 0) / total_checks if total_checks > 0 else 0
+    
+    return AuditStatsResponse(
+        total_cycles=total_cycles,
+        total_changes_detected=stats.total_changes or 0,
+        total_downloads_automated=stats.total_automated or 0,
+        total_manual_interventions=stats.total_manual or 0,
+        total_urls_checked=stats.total_checked or 0,
+        total_successful_checks=stats.total_success or 0,
+        total_failed_checks=stats.total_failed or 0,
+        average_cycle_duration=stats.avg_duration,
+        automation_rate=automation_rate,
+        success_rate=success_rate,
+        scheduled_cycles=trigger_map.get("scheduled", 0),
+        manual_cycles=trigger_map.get("manual", 0) + trigger_map.get("cli", 0),
+        api_cycles=trigger_map.get("api", 0)
+    )
+
+
+@router.get("/api/audit/trends")
+async def get_audit_trends(
+    period: str = "daily",
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get audit trends over time."""
+    from db.models import MonitoringCycle
+    from sqlalchemy import func
+    from datetime import timedelta
+    
+    # Calculate date range
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+    
+    # Get cycles in range
+    cycles = db.query(MonitoringCycle).filter(
+        MonitoringCycle.started_at >= start_date
+    ).order_by(MonitoringCycle.started_at).all()
+    
+    # Group by period
+    data = []
+    if period == "daily":
+        # Group by day
+        from collections import defaultdict
+        daily_data = defaultdict(lambda: {
+            "cycles": 0, "changes": 0, "automated": 0, "manual": 0,
+            "success": 0, "failed": 0
+        })
+        
+        for cycle in cycles:
+            date_key = cycle.started_at.strftime("%Y-%m-%d")
+            daily_data[date_key]["cycles"] += 1
+            daily_data[date_key]["changes"] += cycle.changes_detected or 0
+            daily_data[date_key]["automated"] += cycle.downloads_automated or 0
+            daily_data[date_key]["manual"] += cycle.manual_interventions or 0
+            daily_data[date_key]["success"] += cycle.successful_checks or 0
+            daily_data[date_key]["failed"] += cycle.failed_checks or 0
+        
+        for date_key in sorted(daily_data.keys()):
+            data.append({
+                "date": date_key,
+                **daily_data[date_key]
+            })
+    
+    return {
+        "period": period,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "data": data
+    }
+
+
+# ============================================================================
+# New HTML Pages for Workflow
+# ============================================================================
+
+@router.get("/url-management", response_class=HTMLResponse)
+async def url_management_page(
+    request: Request,
+    state: Optional[str] = None,
+    domain: Optional[str] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """URL Management page - Page 1 of new workflow."""
+    from sqlalchemy import func
+    from services.scheduler import get_scheduler_status
+    
+    # Get scheduler status
+    scheduler_status = get_scheduler_status()
+    
+    # Build query with filters
+    query = db.query(MonitoredURL)
+    
+    if state:
+        query = query.filter(MonitoredURL.state == state)
+    
+    if domain:
+        query = query.filter(MonitoredURL.domain_category == domain)
+    
+    if search:
+        query = query.filter(
+            (MonitoredURL.name.ilike(f"%{search}%")) |
+            (MonitoredURL.url.ilike(f"%{search}%"))
+        )
+    
+    urls = query.order_by(MonitoredURL.name).all()
+    
+    # Get stats for each URL
+    url_data = []
+    for url in urls:
+        version_count = db.query(PDFVersion).filter(
+            PDFVersion.monitored_url_id == url.id
+        ).count()
+        
+        pending_changes = db.query(ChangeLog).filter(
+            ChangeLog.monitored_url_id == url.id,
+            ChangeLog.review_status == "pending"
+        ).count()
+        
+        url_data.append({
+            "url": url,
+            "version_count": version_count,
+            "pending_changes": pending_changes
+        })
+    
+    # Get filter options
+    state_counts = db.query(
+        MonitoredURL.state,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.state.isnot(None)
+    ).group_by(MonitoredURL.state).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    domain_counts = db.query(
+        MonitoredURL.domain_category,
+        func.count(MonitoredURL.id).label('count')
+    ).filter(
+        MonitoredURL.domain_category.isnot(None)
+    ).group_by(MonitoredURL.domain_category).order_by(func.count(MonitoredURL.id).desc()).all()
+    
+    return templates.TemplateResponse(
+        "url_management.html",
+        {
+            "request": request,
+            "urls": url_data,
+            "scheduler_status": scheduler_status,
+            "current_state": state,
+            "current_domain": domain,
+            "search_query": search,
+            "state_counts": state_counts,
+            "domain_counts": domain_counts,
+            "now": datetime.utcnow()
+        }
+    )
+
+
+@router.get("/change-review", response_class=HTMLResponse)
+async def change_review_page(
+    request: Request,
+    status: str = "pending",
+    change_type: Optional[str] = None,
+    state: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Change Review page - Page 2 of new workflow."""
+    from sqlalchemy import func
+    
+    # Build query
+    query = db.query(ChangeLog).join(
+        MonitoredURL, ChangeLog.monitored_url_id == MonitoredURL.id
+    ).filter(MonitoredURL.enabled == True)
+    
+    if status and status != "all":
+        query = query.filter(ChangeLog.review_status == status)
+    
+    if change_type:
+        query = query.filter(ChangeLog.change_type == change_type)
+    
+    if state:
+        query = query.filter(MonitoredURL.state == state)
+    
+    changes = query.order_by(ChangeLog.detected_at.desc()).limit(100).all()
+    
+    # Enrich with URL and version data
+    change_data = []
+    for change in changes:
+        url = db.query(MonitoredURL).filter(
+            MonitoredURL.id == change.monitored_url_id
+        ).first()
+        
+        version = db.query(PDFVersion).filter(
+            PDFVersion.id == change.new_version_id
+        ).first()
+        
+        # Load relocation near-misses for relocation_failed changes
+        item = {
+            "change": change,
+            "url": url,
+            "version": version
+        }
+        if change.change_type == "relocation_failed":
+            item["relocation_near_misses"] = load_relocation_near_misses(change.monitored_url_id)
+        else:
+            item["relocation_near_misses"] = None
+        
+        change_data.append(item)
+    
+    # Get filter options
+    state_counts = db.query(
+        MonitoredURL.state,
+        func.count(ChangeLog.id).label('count')
+    ).join(
+        ChangeLog, MonitoredURL.id == ChangeLog.monitored_url_id
+    ).filter(
+        MonitoredURL.state.isnot(None)
+    ).group_by(MonitoredURL.state).all()
+    
+    # Stats
+    total_pending = db.query(ChangeLog).filter(
+        ChangeLog.review_status == "pending"
+    ).count()
+    
+    total_approved = db.query(ChangeLog).filter(
+        ChangeLog.review_status.in_(["approved", "auto_approved"])
+    ).count()
+    
+    return templates.TemplateResponse(
+        "change_review.html",
+        {
+            "request": request,
+            "changes": change_data,
+            "current_status": status,
+            "current_type": change_type,
+            "current_state": state,
+            "state_counts": state_counts,
+            "total_pending": total_pending,
+            "total_approved": total_approved,
+            "now": datetime.utcnow()
+        }
+    )
+
+
+@router.get("/audit", response_class=HTMLResponse)
+async def audit_page(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Audit & Metrics page - Page 3 of new workflow."""
+    from db.models import MonitoringCycle
+    from sqlalchemy import func
+    
+    # Get recent cycles
+    recent_cycles = db.query(MonitoringCycle).order_by(
+        MonitoringCycle.started_at.desc()
+    ).limit(20).all()
+    
+    # Get overall stats
+    stats = db.query(
+        func.count(MonitoringCycle.id).label("total_cycles"),
+        func.sum(MonitoringCycle.changes_detected).label("total_changes"),
+        func.sum(MonitoringCycle.downloads_automated).label("total_automated"),
+        func.sum(MonitoringCycle.manual_interventions).label("total_manual"),
+        func.sum(MonitoringCycle.total_urls_checked).label("total_checked"),
+        func.sum(MonitoringCycle.successful_checks).label("total_success"),
+        func.sum(MonitoringCycle.failed_checks).label("total_failed"),
+        func.avg(MonitoringCycle.duration_seconds).label("avg_duration")
+    ).first()
+    
+    # Calculate rates
+    total_downloads = (stats.total_automated or 0) + (stats.total_manual or 0)
+    automation_rate = (stats.total_automated or 0) / total_downloads if total_downloads > 0 else 0
+    
+    total_checks = stats.total_checked or 0
+    success_rate = (stats.total_success or 0) / total_checks if total_checks > 0 else 0
+    
+    return templates.TemplateResponse(
+        "audit_metrics.html",
+        {
+            "request": request,
+            "cycles": recent_cycles,
+            "stats": {
+                "total_cycles": stats.total_cycles or 0,
+                "total_changes": stats.total_changes or 0,
+                "total_automated": stats.total_automated or 0,
+                "total_manual": stats.total_manual or 0,
+                "total_checked": stats.total_checked or 0,
+                "total_success": stats.total_success or 0,
+                "total_failed": stats.total_failed or 0,
+                "avg_duration": stats.avg_duration,
+                "automation_rate": automation_rate,
+                "success_rate": success_rate
+            },
+            "now": datetime.utcnow()
+        }
+    )
 

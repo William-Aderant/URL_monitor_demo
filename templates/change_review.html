@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+
+{% block title %}Change Review - PDF Monitor{% endblock %}
+
+{% block content %}
+<h1>Change Review</h1>
+
+{# Stats Bar #}
+<div class="stats-grid" style="margin-bottom: 24px;">
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--warning);">{{ total_pending }}</div>
+        <div class="stat-label">Pending Review</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ total_approved }}</div>
+        <div class="stat-label">Approved</div>
+    </div>
+</div>
+
+{# Filter Bar #}
+<div class="card" style="margin-bottom: 24px; padding: 16px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+        {# Status Filter #}
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-weight: 500;">Status:</label>
+            <select id="statusFilter" onchange="applyFilters()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="approved" {% if current_status == 'approved' %}selected{% endif %}>Approved</option>
+                <option value="all" {% if current_status == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </div>
+        
+        {# Change Type Filter #}
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-weight: 500;">Type:</label>
+            <select id="typeFilter" onchange="applyFilters()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                <option value="">All Types</option>
+                <option value="new" {% if current_type == 'new' %}selected{% endif %}>New</option>
+                <option value="text_changed" {% if current_type == 'text_changed' %}selected{% endif %}>Text Changed</option>
+                <option value="format_only" {% if current_type == 'format_only' %}selected{% endif %}>Format Only</option>
+                <option value="relocated" {% if current_type == 'relocated' %}selected{% endif %}>Relocated</option>
+                <option value="relocation_failed" {% if current_type == 'relocation_failed' %}selected{% endif %}>Relocation Failed</option>
+            </select>
+        </div>
+        
+        {# State Filter #}
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-weight: 500;">State:</label>
+            <select id="stateFilter" onchange="applyFilters()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                <option value="">All States</option>
+                {% for state_name, count in state_counts %}
+                <option value="{{ state_name }}" {% if current_state == state_name %}selected{% endif %}>{{ state_name }} ({{ count }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+{# Bulk Actions #}
+<div style="margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap;">
+    <button id="bulkApproveBtn" class="btn btn-primary" onclick="bulkApprove()" disabled style="opacity: 0.5;">✓ Approve Selected</button>
+    <button id="bulkRejectBtn" class="btn btn-secondary" onclick="bulkReject()" disabled style="opacity: 0.5;">✗ Reject Selected</button>
+</div>
+
+{# Changes Table #}
+{% if changes %}
+<div class="card" style="overflow-x: auto;">
+    <table style="width: 100%; min-width: 1000px;">
+        <thead>
+            <tr>
+                <th style="width: 40px;">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                </th>
+                <th>Form Title</th>
+                <th style="width: 150px;">Change Type</th>
+                <th style="width: 120px;">Detected</th>
+                <th style="width: 100px;">Similarity</th>
+                <th style="width: 120px;">AI Rec.</th>
+                <th style="width: 100px;">Preview</th>
+                <th style="width: 100px;">Download</th>
+                <th style="width: 100px;">Approve</th>
+                <th style="width: 80px;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in changes %}
+            <tr class="change-row" data-id="{{ item.change.id }}" data-downloaded="{{ item.change.download_count or 0 }}">
+                <td>
+                    <input type="checkbox" class="row-checkbox" value="{{ item.change.id }}" onchange="updateBulkButtons()">
+                </td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div class="editable-title" data-id="{{ item.change.id }}">
+                            <strong>{{ item.version.formatted_title if item.version and item.version.formatted_title else item.url.name }}</strong>
+                            <button class="edit-btn" onclick="editTitle(this)" title="Edit title">✏️</button>
+                        </div>
+                        {% if item.version and item.version.form_number %}
+                        <span class="badge badge-neutral">{{ item.version.form_number }}</span>
+                        {% endif %}
+                        <a href="{{ item.url.url }}" target="_blank" class="url-link" style="font-size: 0.8rem;">{{ item.url.url[:40] }}...</a>
+                    </div>
+                </td>
+                <td>
+                    {% if item.change.change_type == 'new' %}
+                    <span class="badge badge-info">🆕 New Form</span>
+                    {% elif item.change.change_type == 'text_changed' %}
+                    <span class="badge badge-warning">📝 Text Changed</span>
+                    {% elif item.change.change_type == 'format_only' %}
+                    <span class="badge badge-neutral">📄 Format Only</span>
+                    {% elif item.change.change_type == 'relocated' %}
+                    <span class="badge badge-info">📍 Relocated</span>
+                    {% elif item.change.change_type == 'relocation_failed' %}
+                    <span class="badge badge-error">⚠️ Relocation Failed</span>
+                    <div style="margin-top: 4px; font-size: 0.7rem; color: var(--error);">Form inaccessible</div>
+                    {% else %}
+                    <span class="badge badge-neutral">{{ item.change.change_type }}</span>
+                    {% endif %}
+                    {% if item.change.match_type %}
+                    <div style="margin-top: 4px; font-size: 0.75rem; color: var(--text-secondary);">
+                        {% if item.change.match_type == 'form_number_match' %}Same Form{% elif item.change.match_type == 'similarity_match' %}Similar{% elif item.change.match_type == 'new_form' %}New{% else %}{{ item.change.match_type }}{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="timestamp">{{ item.change.detected_at.strftime('%m/%d %H:%M') }}</span>
+                </td>
+                <td>
+                    {% if item.change.similarity_score %}
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <div style="width: 40px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                            <div style="width: {{ (item.change.similarity_score * 100)|round }}%; height: 100%; background: {% if item.change.similarity_score > 0.8 %}var(--success){% elif item.change.similarity_score > 0.5 %}var(--warning){% else %}var(--error){% endif %};"></div>
+                        </div>
+                        <span style="font-size: 0.8rem;">{{ (item.change.similarity_score * 100)|round }}%</span>
+                    </div>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.change.recommended_action %}
+                    <span class="badge {% if item.change.recommended_action == 'auto_approve' %}badge-success{% elif item.change.recommended_action == 'manual_required' %}badge-error{% elif item.change.recommended_action == 'review_suggested' %}badge-warning{% else %}badge-neutral{% endif %}">
+                        {% if item.change.recommended_action == 'auto_approve' %}✓ Auto{% elif item.change.recommended_action == 'manual_required' %}⚠️ Manual{% elif item.change.recommended_action == 'review_suggested' %}👀 Review{% elif item.change.recommended_action == 'new_form' %}🆕 New{% else %}{{ item.change.recommended_action }}{% endif %}
+                    </span>
+                    {% if item.change.action_confidence %}
+                    <div style="margin-top: 2px; font-size: 0.7rem; color: var(--text-secondary);">{{ (item.change.action_confidence * 100)|round }}%</div>
+                    {% endif %}
+                    {% else %}
+                    <span style="color: var(--text-secondary);">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.change.change_type == 'relocation_failed' and item.relocation_near_misses and item.relocation_near_misses.candidates %}
+                    <button class="btn btn-secondary btn-sm" onclick="showRelocationSuggestions({{ item.change.id }}, {{ item.url.id }}, '{{ item.url.name|replace("'", "\\'") }}')" title="View suggested links">
+                        🔗 Suggestions
+                    </button>
+                    {% elif item.change.change_type == 'relocation_failed' %}
+                    <span style="color: var(--text-secondary); font-size: 0.8rem;">No suggestions</span>
+                    {% else %}
+                    <button class="btn btn-secondary btn-sm" onclick="previewChange({{ item.change.id }}, {{ item.url.id }}, {{ item.change.new_version_id }})" title="Preview changes">
+                        👁️ Preview
+                    </button>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/api/changes/{{ item.change.id }}/download" class="btn btn-primary btn-sm" onclick="markDownloaded({{ item.change.id }})" title="Download PDF">
+                        📥 Download
+                    </a>
+                    {% if item.change.download_count and item.change.download_count > 0 %}
+                    <div style="margin-top: 4px; font-size: 0.7rem; color: var(--success);">✓ Downloaded {{ item.change.download_count }}x</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn {% if item.change.download_count and item.change.download_count > 0 %}btn-primary{% else %}btn-secondary{% endif %} btn-sm approve-btn" 
+                            data-id="{{ item.change.id }}"
+                            onclick="approveChange({{ item.change.id }})"
+                            {% if not item.change.download_count or item.change.download_count == 0 %}disabled title="Download required before approval"{% else %}title="Approve change"{% endif %}>
+                        ✓ Approve
+                    </button>
+                </td>
+                <td>
+                    {% if item.change.review_status == 'approved' or item.change.review_status == 'auto_approved' %}
+                    <span class="badge badge-success">✓ Approved</span>
+                    {% elif item.change.review_status == 'rejected' %}
+                    <span class="badge badge-error">✗ Rejected</span>
+                    {% else %}
+                    <span class="badge badge-warning">⏳ Pending</span>
+                    {% endif %}
+                    {% if item.change.manual_intervention_required %}
+                    <div style="margin-top: 4px;"><span class="badge badge-warning" style="font-size: 0.6rem;">Manual Edit</span></div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <h2>No Changes to Review</h2>
+        <p>All detected changes have been reviewed.</p>
+    </div>
+</div>
+{% endif %}
+
+{# Store relocation suggestions data for JavaScript #}
+<script type="application/json" id="relocationData">
+{
+    {% for item in changes %}
+    {% if item.relocation_near_misses and item.relocation_near_misses.candidates %}
+    "{{ item.change.id }}": {
+        "url_id": {{ item.url.id }},
+        "url_name": "{{ item.url.name|replace('"', '\\"') }}",
+        "original_url": "{{ item.relocation_near_misses.original_url|default('')|replace('"', '\\"') }}",
+        "candidates": [
+            {% for c in item.relocation_near_misses.candidates %}
+            {"pdf_url": "{{ c.pdf_url|replace('"', '\\"') }}", "similarity_score": {{ c.similarity_score|default(0) }}}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not loop.last %},{% endif %}
+    {% endif %}
+    {% endfor %}
+}
+</script>
+
+{# Relocation Suggestions Modal #}
+<div id="relocationModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2>🔗 Relocation Suggestions</h2>
+            <button onclick="closeModal('relocationModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <div id="relocationContent">
+            <div class="alert alert-warning" style="background: rgba(244, 165, 33, 0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Form Inaccessible</div>
+                <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">The original URL is no longer accessible. The system found potential new locations for this form based on content similarity.</p>
+            </div>
+            <div id="relocationFormName" style="font-weight: 600; margin-bottom: 8px;"></div>
+            <div id="relocationOriginalUrl" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; word-break: break-all;"></div>
+            
+            <div style="font-weight: 600; margin-bottom: 12px;">📋 Suggested New Locations:</div>
+            <div id="relocationCandidates" style="display: flex; flex-direction: column; gap: 12px;"></div>
+            
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">If a suggestion is correct, you can update the monitored URL:</p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a id="relocationEditLink" href="#" class="btn btn-secondary btn-sm">✏️ Edit URL in Management</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Preview Modal #}
+<div id="previewModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px; height: 80vh;">
+        <div class="modal-header">
+            <h2>Change Preview</h2>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" onclick="setPreviewView('overlay')">Overlay</button>
+                <button class="btn btn-secondary btn-sm" onclick="setPreviewView('side-by-side')">Side by Side</button>
+                <button onclick="closeModal('previewModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            </div>
+        </div>
+        <div id="previewContent" style="flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: var(--bg-tertiary); border-radius: 8px;">
+            <div id="previewLoading" style="text-align: center; padding: 40px;">
+                <div style="font-size: 2rem; margin-bottom: 12px;">⏳</div>
+                <p>Loading preview...</p>
+            </div>
+            <img id="previewImage" style="max-width: 100%; max-height: 100%; display: none;" alt="Change preview">
+        </div>
+        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <button class="btn btn-secondary btn-sm" onclick="prevPage()">← Previous</button>
+                <span id="pageIndicator" style="margin: 0 16px;">Page 1</span>
+                <button class="btn btn-secondary btn-sm" onclick="nextPage()">Next →</button>
+            </div>
+            <div id="previewActions" style="display: flex; gap: 8px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 0.8rem;
+    margin-left: 8px;
+}
+
+.editable-title:hover .edit-btn {
+    opacity: 1;
+}
+
+.alert-warning {
+    background: rgba(244, 165, 33, 0.1);
+    border: 1px solid var(--warning);
+}
+
+.alert-error {
+    background: rgba(244, 33, 46, 0.1);
+    border: 1px solid var(--error);
+}
+</style>
+
+<script>
+let currentPreviewChangeId = null;
+let currentPreviewUrlId = null;
+let currentPreviewVersionId = null;
+let currentPage = 0;
+let totalPages = 1;
+let currentView = 'overlay';
+
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const type = document.getElementById('typeFilter').value;
+    const state = document.getElementById('stateFilter').value;
+    
+    let url = '/change-review?';
+    if (status) url += `status=${encodeURIComponent(status)}&`;
+    if (type) url += `change_type=${encodeURIComponent(type)}&`;
+    if (state) url += `state=${encodeURIComponent(state)}&`;
+    window.location.href = url.slice(0, -1);
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    const checked = document.querySelectorAll('.row-checkbox:checked').length;
+    document.getElementById('bulkApproveBtn').disabled = checked === 0;
+    document.getElementById('bulkApproveBtn').style.opacity = checked === 0 ? '0.5' : '1';
+    document.getElementById('bulkRejectBtn').disabled = checked === 0;
+    document.getElementById('bulkRejectBtn').style.opacity = checked === 0 ? '0.5' : '1';
+}
+
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function markDownloaded(changeId) {
+    // Update UI to show downloaded
+    const row = document.querySelector(`tr[data-id="${changeId}"]`);
+    if (row) {
+        row.dataset.downloaded = parseInt(row.dataset.downloaded || 0) + 1;
+        const approveBtn = row.querySelector('.approve-btn');
+        if (approveBtn) {
+            approveBtn.disabled = false;
+            approveBtn.classList.remove('btn-secondary');
+            approveBtn.classList.add('btn-primary');
+            approveBtn.title = 'Approve change';
+        }
+    }
+}
+
+async function approveChange(changeId) {
+    const row = document.querySelector(`tr[data-id="${changeId}"]`);
+    const downloaded = parseInt(row?.dataset.downloaded || 0);
+    
+    if (downloaded === 0) {
+        alert('Please download the form before approving.');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/changes/${changeId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to approve');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function bulkApprove() {
+    const ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
+    if (ids.length === 0) return;
+    
+    // Check if all selected have been downloaded
+    const notDownloaded = ids.filter(id => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        return !row || parseInt(row.dataset.downloaded || 0) === 0;
+    });
+    
+    if (notDownloaded.length > 0) {
+        alert(`${notDownloaded.length} selected changes have not been downloaded. Please download before approving.`);
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/triage/bulk-review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ change_ids: ids, action: 'approved' })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to approve changes');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function bulkReject() {
+    const ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
+    if (ids.length === 0) return;
+    
+    if (!confirm(`Reject ${ids.length} changes?`)) return;
+    
+    try {
+        const response = await fetch('/api/triage/bulk-review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ change_ids: ids, action: 'rejected' })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to reject changes');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function previewChange(changeId, urlId, versionId) {
+    currentPreviewChangeId = changeId;
+    currentPreviewUrlId = urlId;
+    currentPreviewVersionId = versionId;
+    currentPage = 0;
+    
+    openModal('previewModal');
+    
+    // Get page info
+    try {
+        const infoResponse = await fetch(`/api/urls/${urlId}/versions/${versionId}/diff-info`);
+        const info = await infoResponse.json();
+        totalPages = info.page_count || 1;
+        updatePageIndicator();
+    } catch (err) {
+        totalPages = 1;
+    }
+    
+    loadPreviewImage();
+}
+
+async function loadPreviewImage() {
+    const loading = document.getElementById('previewLoading');
+    const img = document.getElementById('previewImage');
+    
+    loading.style.display = 'block';
+    img.style.display = 'none';
+    
+    const url = `/api/urls/${currentPreviewUrlId}/versions/${currentPreviewVersionId}/diff-preview?page=${currentPage}&view=${currentView}`;
+    
+    try {
+        img.src = url;
+        img.onload = () => {
+            loading.style.display = 'none';
+            img.style.display = 'block';
+        };
+        img.onerror = () => {
+            loading.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 2rem; margin-bottom: 12px;">❌</div><p>Failed to load preview</p></div>';
+        };
+    } catch (err) {
+        loading.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 2rem; margin-bottom: 12px;">❌</div><p>Error: ' + err.message + '</p></div>';
+    }
+}
+
+function setPreviewView(view) {
+    currentView = view;
+    loadPreviewImage();
+}
+
+function prevPage() {
+    if (currentPage > 0) {
+        currentPage--;
+        updatePageIndicator();
+        loadPreviewImage();
+    }
+}
+
+function nextPage() {
+    if (currentPage < totalPages - 1) {
+        currentPage++;
+        updatePageIndicator();
+        loadPreviewImage();
+    }
+}
+
+function updatePageIndicator() {
+    document.getElementById('pageIndicator').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+}
+
+function editTitle(btn) {
+    const container = btn.closest('.editable-title');
+    const changeId = container.dataset.id;
+    const currentTitle = container.querySelector('strong').textContent;
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentTitle;
+    input.style.cssText = 'width: 100%; padding: 4px 8px; background: var(--bg-tertiary); border: 1px solid var(--accent); border-radius: 4px; color: var(--text-primary);';
+    
+    input.onblur = () => saveTitle(changeId, input.value);
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') window.location.reload();
+    };
+    
+    container.innerHTML = '';
+    container.appendChild(input);
+    input.focus();
+    input.select();
+    
+    // Record manual intervention
+    recordIntervention(changeId, 'title_edit');
+}
+
+async function saveTitle(changeId, newTitle) {
+    // This would need an endpoint to update the version title
+    // For now, just reload
+    window.location.reload();
+}
+
+async function recordIntervention(changeId, type) {
+    try {
+        await fetch(`/api/changes/${changeId}/intervention`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ intervention_type: type })
+        });
+    } catch (err) {
+        console.error('Failed to record intervention:', err);
+    }
+}
+
+// Relocation suggestions
+let relocationData = {};
+try {
+    const dataEl = document.getElementById('relocationData');
+    if (dataEl) {
+        relocationData = JSON.parse(dataEl.textContent);
+    }
+} catch (err) {
+    console.error('Failed to parse relocation data:', err);
+}
+
+function showRelocationSuggestions(changeId, urlId, urlName) {
+    const data = relocationData[changeId];
+    if (!data) {
+        alert('No relocation suggestions available');
+        return;
+    }
+    
+    // Populate modal
+    document.getElementById('relocationFormName').textContent = data.url_name || urlName;
+    document.getElementById('relocationOriginalUrl').innerHTML = 
+        '<strong>Original URL:</strong> <span style="color: var(--error);">' + (data.original_url || 'Unknown') + '</span>';
+    document.getElementById('relocationEditLink').href = '/url/' + urlId;
+    
+    // Build candidates list
+    const container = document.getElementById('relocationCandidates');
+    container.innerHTML = '';
+    
+    if (data.candidates && data.candidates.length > 0) {
+        data.candidates.forEach((c, index) => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;';
+            
+            const similarity = c.similarity_score ? c.similarity_score.toFixed(1) : '?';
+            const similarityColor = c.similarity_score >= 95 ? 'var(--success)' : 
+                                   c.similarity_score >= 85 ? 'var(--warning)' : 'var(--text-secondary)';
+            
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 500; margin-bottom: 4px;">Suggestion ${index + 1}</div>
+                        <a href="${c.pdf_url}" target="_blank" rel="noopener" style="color: var(--accent); word-break: break-all; font-size: 0.85rem;">${c.pdf_url}</a>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0;">
+                        <div style="font-weight: 600; color: ${similarityColor}; font-size: 1.1rem;">${similarity}%</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">similar</div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 8px;">
+                    <a href="${c.pdf_url}" target="_blank" class="btn btn-secondary btn-sm">🔗 Open Link</a>
+                    <button class="btn btn-primary btn-sm" onclick="useRelocationUrl(${urlId}, '${c.pdf_url.replace(/'/g, "\\'")}')">✓ Use This URL</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    } else {
+        container.innerHTML = '<p style="color: var(--text-secondary);">No similar forms were found.</p>';
+    }
+    
+    openModal('relocationModal');
+}
+
+async function useRelocationUrl(urlId, newUrl) {
+    if (!confirm('Update the monitored URL to this new location?')) return;
+    
+    try {
+        const response = await fetch(`/api/urls/${urlId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: newUrl })
+        });
+        
+        if (response.ok) {
+            alert('URL updated successfully! The form will be checked at the next monitoring cycle.');
+            closeModal('relocationModal');
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert('Failed to update URL: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

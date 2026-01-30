@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Audit & Metrics - PDF Monitor{% endblock %}
+
+{% block content %}
+<h1>Audit & Metrics</h1>
+
+{# Overall Statistics #}
+<div class="stats-grid" style="margin-bottom: 32px;">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_cycles }}</div>
+        <div class="stat-label">Total Monitoring Cycles</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--warning);">{{ stats.total_changes }}</div>
+        <div class="stat-label">Changes Detected</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ stats.total_automated }}</div>
+        <div class="stat-label">Downloads (No Manual Edit)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--error);">{{ stats.total_manual }}</div>
+        <div class="stat-label">Manual Interventions</div>
+    </div>
+</div>
+
+{# Key Performance Indicators #}
+<div class="card" style="margin-bottom: 32px;">
+    <h2>Key Performance Indicators</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-top: 16px;">
+        <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-secondary);">Automation Rate</span>
+                <strong style="font-size: 1.25rem;">{{ (stats.automation_rate * 100)|round(1) }}%</strong>
+            </div>
+            <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="width: {{ (stats.automation_rate * 100)|round }}%; height: 100%; background: var(--success);"></div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Downloads without manual intervention</p>
+        </div>
+        <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-secondary);">Check Success Rate</span>
+                <strong style="font-size: 1.25rem;">{{ (stats.success_rate * 100)|round(1) }}%</strong>
+            </div>
+            <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="width: {{ (stats.success_rate * 100)|round }}%; height: 100%; background: var(--accent);"></div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Successful URL checks vs total</p>
+        </div>
+        <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: var(--text-secondary);">Avg Cycle Duration</span>
+                <strong style="font-size: 1.25rem;">{{ (stats.avg_duration or 0)|round(1) }}s</strong>
+            </div>
+            <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="width: {{ [((stats.avg_duration or 0) / 120) * 100, 100]|min }}%; height: 100%; background: var(--warning);"></div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Average time per monitoring cycle</p>
+        </div>
+    </div>
+</div>
+
+{# Cycle Summary Cards #}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 32px;">
+    <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 40px; height: 40px; background: rgba(0, 186, 124, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">✓</div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.total_success }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.875rem;">Successful Checks</div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 40px; height: 40px; background: rgba(244, 33, 46, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">✗</div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.total_failed }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.875rem;">Failed Checks</div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 40px; height: 40px; background: rgba(29, 155, 240, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">📊</div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.total_checked }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.875rem;">Total URLs Checked</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Recent Monitoring Cycles #}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin-bottom: 0;">Recent Monitoring Cycles</h2>
+        <button class="btn btn-secondary btn-sm" onclick="exportCycles()">📥 Export CSV</button>
+    </div>
+    
+    {% if cycles %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; min-width: 900px;">
+            <thead>
+                <tr>
+                    <th>Cycle ID</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>URLs Checked</th>
+                    <th>Success</th>
+                    <th>Failed</th>
+                    <th>Changes</th>
+                    <th>Automated</th>
+                    <th>Manual</th>
+                    <th>Triggered By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cycle in cycles %}
+                <tr class="cycle-row" data-id="{{ cycle.id }}">
+                    <td><strong>#{{ cycle.id }}</strong></td>
+                    <td>
+                        <span class="timestamp">{{ cycle.started_at.strftime('%m/%d/%Y %H:%M') }}</span>
+                    </td>
+                    <td>
+                        {% if cycle.duration_seconds %}
+                        <span>{{ cycle.duration_seconds|round(1) }}s</span>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if cycle.status == 'completed' %}
+                        <span class="badge badge-success">Completed</span>
+                        {% elif cycle.status == 'running' %}
+                        <span class="badge badge-warning">Running</span>
+                        {% elif cycle.status == 'failed' %}
+                        <span class="badge badge-error">Failed</span>
+                        {% else %}
+                        <span class="badge badge-neutral">{{ cycle.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ cycle.total_urls_checked or 0 }}</td>
+                    <td style="color: var(--success);">{{ cycle.successful_checks or 0 }}</td>
+                    <td style="color: var(--error);">{{ cycle.failed_checks or 0 }}</td>
+                    <td>
+                        {% if cycle.changes_detected and cycle.changes_detected > 0 %}
+                        <span class="badge badge-warning">{{ cycle.changes_detected }}</span>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">0</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: var(--success);">{{ cycle.downloads_automated or 0 }}</td>
+                    <td>
+                        {% if cycle.manual_interventions and cycle.manual_interventions > 0 %}
+                        <span style="color: var(--error);">{{ cycle.manual_interventions }}</span>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">0</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if cycle.triggered_by == 'scheduled' %}
+                        <span class="badge badge-info">⏰ Scheduled</span>
+                        {% elif cycle.triggered_by == 'manual' or cycle.triggered_by == 'cli' %}
+                        <span class="badge badge-neutral">👤 Manual</span>
+                        {% elif cycle.triggered_by == 'api' %}
+                        <span class="badge badge-neutral">🔌 API</span>
+                        {% else %}
+                        <span class="badge badge-neutral">{{ cycle.triggered_by }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="viewCycleDetails({{ cycle.id }})" title="View details">
+                            👁️ Details
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: 40px;">
+        <div class="empty-state-icon">📊</div>
+        <h2>No Monitoring Cycles Yet</h2>
+        <p>Run a monitoring cycle to see statistics here.</p>
+    </div>
+    {% endif %}
+</div>
+
+{# Cycle Details Modal #}
+<div id="cycleModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Cycle Details</h2>
+            <button onclick="closeModal('cycleModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+        <div id="cycleDetails">
+            <div style="text-align: center; padding: 40px;">
+                <div style="font-size: 2rem; margin-bottom: 12px;">⏳</div>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.cycle-row:hover {
+    cursor: pointer;
+}
+</style>
+
+<script>
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+async function viewCycleDetails(cycleId) {
+    openModal('cycleModal');
+    const container = document.getElementById('cycleDetails');
+    
+    container.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 2rem; margin-bottom: 12px;">⏳</div><p>Loading...</p></div>';
+    
+    try {
+        // Get cycle info
+        const cycleResponse = await fetch(`/api/audit/cycles/${cycleId}`);
+        const cycle = await cycleResponse.json();
+        
+        // Get URL results
+        const resultsResponse = await fetch(`/api/audit/cycles/${cycleId}/results`);
+        const results = await resultsResponse.json();
+        
+        let html = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="stat-card" style="padding: 16px;">
+                    <div class="stat-value" style="font-size: 1.5rem;">${cycle.total_urls_checked || 0}</div>
+                    <div class="stat-label">URLs Checked</div>
+                </div>
+                <div class="stat-card" style="padding: 16px;">
+                    <div class="stat-value" style="font-size: 1.5rem; color: var(--success);">${cycle.successful_checks || 0}</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat-card" style="padding: 16px;">
+                    <div class="stat-value" style="font-size: 1.5rem; color: var(--error);">${cycle.failed_checks || 0}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-card" style="padding: 16px;">
+                    <div class="stat-value" style="font-size: 1.5rem; color: var(--warning);">${cycle.changes_detected || 0}</div>
+                    <div class="stat-label">Changes</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-bottom: 12px;">URL Check Results</h3>
+        `;
+        
+        if (results.length > 0) {
+            html += `
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            for (const result of results) {
+                html += `
+                    <tr>
+                        <td>${result.url_name || 'Unknown'}</td>
+                        <td>
+                            ${result.status === 'success' 
+                                ? '<span class="badge badge-success">✓ Success</span>' 
+                                : '<span class="badge badge-error">✗ Failed</span>'}
+                            ${result.error_message ? `<div style="font-size: 0.75rem; color: var(--error); margin-top: 4px;">${result.error_message}</div>` : ''}
+                        </td>
+                        <td>${result.duration_ms ? result.duration_ms + 'ms' : '-'}</td>
+                        <td>${result.change_detected ? '<span class="badge badge-warning">Yes</span>' : '-'}</td>
+                    </tr>
+                `;
+            }
+            
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p style="color: var(--text-secondary);">No detailed results available.</p>';
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (err) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--error);"><div style="font-size: 2rem; margin-bottom: 12px;">❌</div><p>Error: ${err.message}</p></div>`;
+    }
+}
+
+async function exportCycles() {
+    try {
+        const response = await fetch('/api/audit/cycles?limit=1000');
+        const cycles = await response.json();
+        
+        // Convert to CSV
+        let csv = 'Cycle ID,Started,Duration (s),Status,URLs Checked,Successful,Failed,Changes,Automated,Manual,Triggered By\n';
+        
+        for (const cycle of cycles) {
+            csv += `${cycle.id},"${cycle.started_at}",${cycle.duration_seconds || ''},${cycle.status},${cycle.total_urls_checked || 0},${cycle.successful_checks || 0},${cycle.failed_checks || 0},${cycle.changes_detected || 0},${cycle.downloads_automated || 0},${cycle.manual_interventions || 0},${cycle.triggered_by}\n`;
+        }
+        
+        // Download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `monitoring_cycles_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('Error exporting: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

@@ -8,7 +8,10 @@ import structlog
 from sqlalchemy import inspect, text
 
 from db.database import engine, Base, init_db
-from db.models import MonitoredURL, PDFVersion, ChangeLog  # noqa: F401
+from db.models import (  # noqa: F401
+    MonitoredURL, PDFVersion, ChangeLog,
+    ScheduleConfig, MonitoringCycle, CycleURLResult
+)
 
 logger = structlog.get_logger()
 
@@ -18,7 +21,10 @@ def check_tables_exist() -> dict[str, bool]:
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
     
-    required_tables = ["monitored_urls", "pdf_versions", "change_logs"]
+    required_tables = [
+        "monitored_urls", "pdf_versions", "change_logs",
+        "schedule_config", "monitoring_cycles", "cycle_url_results"
+    ]
     return {table: table in existing_tables for table in required_tables}
 
 
@@ -288,6 +294,158 @@ def migrate_idp_enrichment_columns() -> None:
         logger.info("IDP enrichment columns migrated")
 
 
+def migrate_import_tracking_columns() -> None:
+    """
+    Add bulk import tracking columns to monitored_urls table.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "monitored_urls" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("monitored_urls")]
+    
+    new_columns = [
+        ("import_batch_id", "VARCHAR(100)"),
+        ("import_source", "VARCHAR(50)"),
+        ("imported_at", "DATETIME"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to monitored_urls")
+                conn.execute(text(f"ALTER TABLE monitored_urls ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+        logger.info("Import tracking columns migrated")
+
+
+def migrate_download_tracking_columns() -> None:
+    """
+    Add download tracking and manual intervention columns to change_logs table.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    if "change_logs" not in tables:
+        return  # Table will be created with all columns
+    
+    existing = [col["name"] for col in inspector.get_columns("change_logs")]
+    
+    new_columns = [
+        # Download tracking
+        ("download_count", "INTEGER DEFAULT 0"),
+        ("first_downloaded_at", "DATETIME"),
+        ("last_downloaded_at", "DATETIME"),
+        ("downloaded_filename", "VARCHAR(512)"),
+        
+        # Manual intervention tracking
+        ("manual_intervention_required", "BOOLEAN DEFAULT FALSE"),
+        ("intervention_type", "VARCHAR(100)"),
+        ("intervention_notes", "TEXT"),
+        ("intervention_at", "DATETIME"),
+        
+        # Link to monitoring cycle
+        ("cycle_id", "INTEGER"),
+    ]
+    
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            if col_name not in existing:
+                logger.info(f"Adding column {col_name} to change_logs")
+                conn.execute(text(f"ALTER TABLE change_logs ADD COLUMN {col_name} {col_type}"))
+        conn.commit()
+        logger.info("Download tracking and intervention columns migrated")
+
+
+def migrate_scheduling_tables() -> None:
+    """
+    Create schedule_config, monitoring_cycles, and cycle_url_results tables if they don't exist.
+    Also creates default schedule configuration.
+    """
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    
+    # Create new tables if they don't exist
+    if "schedule_config" not in tables:
+        logger.info("Creating schedule_config table")
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE schedule_config (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    enabled BOOLEAN DEFAULT TRUE,
+                    schedule_type VARCHAR(50) DEFAULT 'daily',
+                    daily_time VARCHAR(5) DEFAULT '02:00',
+                    weekly_days JSON,
+                    weekly_time VARCHAR(5) DEFAULT '02:00',
+                    cron_expression VARCHAR(100),
+                    timezone VARCHAR(50) DEFAULT 'UTC',
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    last_run_at DATETIME,
+                    next_run_at DATETIME
+                )
+            """))
+            # Insert default configuration
+            conn.execute(text("""
+                INSERT INTO schedule_config (enabled, schedule_type, daily_time, timezone, created_at)
+                VALUES (TRUE, 'daily', '02:00', 'UTC', datetime('now'))
+            """))
+            conn.commit()
+        logger.info("schedule_config table created with default configuration")
+    
+    if "monitoring_cycles" not in tables:
+        logger.info("Creating monitoring_cycles table")
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE monitoring_cycles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    started_at DATETIME NOT NULL,
+                    completed_at DATETIME,
+                    duration_seconds FLOAT,
+                    status VARCHAR(50) DEFAULT 'running',
+                    total_urls_checked INTEGER DEFAULT 0,
+                    successful_checks INTEGER DEFAULT 0,
+                    failed_checks INTEGER DEFAULT 0,
+                    changes_detected INTEGER DEFAULT 0,
+                    skipped_unchanged INTEGER DEFAULT 0,
+                    downloads_automated INTEGER DEFAULT 0,
+                    manual_interventions INTEGER DEFAULT 0,
+                    triggered_by VARCHAR(50) DEFAULT 'manual',
+                    schedule_config_snapshot JSON,
+                    error_log TEXT,
+                    error_count INTEGER DEFAULT 0
+                )
+            """))
+            conn.commit()
+        logger.info("monitoring_cycles table created")
+    
+    if "cycle_url_results" not in tables:
+        logger.info("Creating cycle_url_results table")
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE cycle_url_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cycle_id INTEGER NOT NULL,
+                    monitored_url_id INTEGER NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    error_message TEXT,
+                    started_at DATETIME,
+                    completed_at DATETIME,
+                    duration_ms INTEGER,
+                    tier_reached INTEGER,
+                    change_detected BOOLEAN DEFAULT FALSE,
+                    change_log_id INTEGER,
+                    FOREIGN KEY (cycle_id) REFERENCES monitoring_cycles(id),
+                    FOREIGN KEY (monitored_url_id) REFERENCES monitored_urls(id),
+                    FOREIGN KEY (change_log_id) REFERENCES change_logs(id)
+                )
+            """))
+            conn.commit()
+        logger.info("cycle_url_results table created")
+
+
 def run_migrations() -> None:
     """
     Run database migrations.
@@ -296,24 +454,36 @@ def run_migrations() -> None:
     logger.info("Checking database schema")
     table_status = check_tables_exist()
     
-    missing_tables = [t for t, exists in table_status.items() if not exists]
+    # Core tables from original schema
+    core_tables = ["monitored_urls", "pdf_versions", "change_logs"]
+    missing_core = [t for t in core_tables if not table_status.get(t, False)]
     
-    if missing_tables:
-        logger.info("Creating missing tables", tables=missing_tables)
+    if missing_core:
+        logger.info("Creating missing core tables", tables=missing_core)
         init_db()
         # Run backfill migrations for newly created tables
         migrate_state_domain_columns()
     else:
-        logger.info("All tables exist", tables=list(table_status.keys()))
-        # Run column migrations for existing tables
-        migrate_title_columns()
-        migrate_change_detection_columns()
-        migrate_review_workflow_columns()
-        migrate_fast_detection_columns()
-        migrate_state_domain_columns()
-        migrate_kendra_columns()
-        # AWS IDP enrichment columns (additive)
-        migrate_idp_enrichment_columns()
+        logger.info("Core tables exist", tables=core_tables)
+    
+    # Always run column migrations to ensure schema is up to date
+    migrate_title_columns()
+    migrate_change_detection_columns()
+    migrate_review_workflow_columns()
+    migrate_fast_detection_columns()
+    migrate_state_domain_columns()
+    migrate_kendra_columns()
+    # AWS IDP enrichment columns (additive)
+    migrate_idp_enrichment_columns()
+    
+    # New scheduling and audit tables
+    migrate_scheduling_tables()
+    
+    # New tracking columns
+    migrate_import_tracking_columns()
+    migrate_download_tracking_columns()
+    
+    logger.info("All migrations completed successfully")
 
 
 def seed_sample_urls(db_session) -> None:

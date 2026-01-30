@@ -70,23 +70,9 @@ class ChangeDetector:
         Returns:
             ChangeResult with comparison details
         """
-        # #region agent log
-        import json
-        try:
-            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"change_detector.py:compare","message":"compare() entry","data":{"has_previous":previous_hashes is not None,"new_pdf_hash":new_hashes.pdf_hash[:16]+"..." if new_hashes.pdf_hash else None,"new_text_hash":new_hashes.text_hash[:16]+"..." if new_hashes.text_hash else None,"new_page_count":len(new_hashes.page_hashes)},"timestamp":int(__import__('time').time()*1000)})+'\n')
-        except: pass
-        # #endregion
-        
         # First version - always "new"
         if previous_hashes is None:
             logger.info("First version detected", change_type="new")
-            # #region agent log
-            try:
-                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"change_detector.py:compare","message":"First version - returning new","data":{},"timestamp":int(__import__('time').time()*1000)})+'\n')
-            except: pass
-            # #endregion
             return ChangeResult(
                 changed=True,
                 change_type="new"
@@ -111,35 +97,15 @@ class ChangeDetector:
             prev_page_count=len(previous_hashes.page_hashes)
         )
         
-        # #region agent log
-        try:
-            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Page hash comparison with similarity","data":{"changed_pages":changed_pages,"new_page_count":len(new_hashes.page_hashes),"prev_page_count":len(previous_hashes.page_hashes)},"timestamp":int(__import__('time').time()*1000)})+'\n')
-        except: pass
-        # #endregion
-        
         # If no pages changed and page counts match, likely no change
         if not changed_pages and len(new_hashes.page_hashes) == len(previous_hashes.page_hashes):
             # Still check PDF and text hashes to be sure
             pdf_changed = new_hashes.pdf_hash != previous_hashes.pdf_hash
             text_changed = new_hashes.text_hash != previous_hashes.text_hash
             
-            # #region agent log
-            try:
-                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Early termination check","data":{"pdf_changed":pdf_changed,"text_changed":text_changed,"will_return_early":not pdf_changed and not text_changed},"timestamp":int(__import__('time').time()*1000)})+'\n')
-            except: pass
-            # #endregion
-            
             if not pdf_changed and not text_changed:
                 # No change detected - early exit
                 logger.info("No change detected (early termination)")
-                # #region agent log
-                try:
-                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"change_detector.py:compare","message":"Early exit - unchanged","data":{},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                except: pass
-                # #endregion
                 return ChangeResult(
                     changed=False,
                     change_type="unchanged"
@@ -148,13 +114,6 @@ class ChangeDetector:
         # Compare hashes
         pdf_changed = new_hashes.pdf_hash != previous_hashes.pdf_hash
         text_changed = new_hashes.text_hash != previous_hashes.text_hash
-        
-        # #region agent log
-        try:
-            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"change_detector.py:compare","message":"Full hash comparison","data":{"pdf_changed":pdf_changed,"text_changed":text_changed,"new_pdf_hash":new_hashes.pdf_hash[:16]+"..." if new_hashes.pdf_hash else None,"prev_pdf_hash":previous_hashes.pdf_hash[:16]+"..." if previous_hashes.pdf_hash else None,"new_text_hash":new_hashes.text_hash[:16]+"..." if new_hashes.text_hash else None,"prev_text_hash":previous_hashes.text_hash[:16]+"..." if previous_hashes.text_hash else None},"timestamp":int(__import__('time').time()*1000)})+'\n')
-        except: pass
-        # #endregion
         
         logger.debug(
             "Hash comparison",
@@ -226,13 +185,6 @@ class ChangeDetector:
                 pdf_hash_changed=True,
                 text_hash_changed=False
             )
-            
-            # #region agent log
-            try:
-                with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"change_detector.py:compare","message":"Format-only change detected","data":{"pdf_changed":True,"text_changed":False},"timestamp":int(__import__('time').time()*1000)})+'\n')
-            except: pass
-            # #endregion
             
             return ChangeResult(
                 changed=True,  # Track format-only changes

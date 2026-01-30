@@ -23,6 +23,7 @@ logger = structlog.get_logger()
 from config import settings
 from db.migrations import run_migrations
 from api.routes import router
+from services.scheduler import init_scheduler, shutdown_scheduler
 
 
 @asynccontextmanager
@@ -43,10 +44,20 @@ async def lifespan(app: FastAPI):
         for issue in issues:
             logger.warning(f"Configuration issue: {issue}")
     
+    # Initialize and start the scheduler for automated monitoring cycles
+    if settings.SCHEDULER_ENABLED:
+        logger.info("Initializing scheduler for automated monitoring")
+        init_scheduler(app)
+    else:
+        logger.info("Scheduler disabled - monitoring will be manual only")
+    
     yield
     
     # Shutdown
     logger.info("Shutting down PDF Monitor")
+    
+    # Shutdown scheduler gracefully
+    shutdown_scheduler()
 
 
 # Create FastAPI app

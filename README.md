@@ -1,17 +1,25 @@
 # Court Form PDF Monitor
 
-A production-grade automated PDF monitoring system for court forms. Detects meaningful changes in PDF documents, stores versions, and provides a minimal web UI for review.
+A production-grade automated PDF monitoring system for court forms. Detects meaningful changes in PDF documents, stores versions, and provides a streamlined web UI for management and review.
 
 ## Features
 
-- **URL Registry**: Monitor multiple court form PDFs from a configurable list
-- **Smart Fetching**: Uses AWS Lambda web scraper to handle JavaScript-rendered pages and extract PDF links (falls back to direct HTTP if Lambda not configured)
+### Core Monitoring
+- **Automated Scheduling**: Built-in scheduler for daily, weekly, or custom cron monitoring cycles
+- **Smart Change Detection**: Three-tier detection (HTTP headers → quick hash → full download)
 - **PDF Normalization**: Strips metadata and normalizes structure for deterministic comparison
 - **Text Extraction**: Uses pdfplumber/pdfminer with AWS Textract OCR fallback
-- **Change Detection**: Hash-based comparison with per-page granularity
-- **Version Storage**: Full history with original and normalized PDFs
-- **Minimal UI**: FastAPI + Jinja dashboard (designed to be replaceable)
-- **CLI Interface**: Headless operation for cron/scheduled jobs
+
+### Workflow Management
+- **URL Management Page**: Add, edit, delete, and bulk upload URLs to monitor
+- **Change Review Page**: Download forms, preview changes, and approve with tracking
+- **Audit & Metrics Page**: Track monitoring cycles, automation rates, and performance
+
+### Key Capabilities
+- **Bulk URL Import**: Upload CSV/TXT files with multiple URLs
+- **Download Tracking**: Forms downloaded as "TITLE {FORM_NUMBER}.pdf"
+- **Approval Workflow**: Download required before approval, manual interventions tracked
+- **Cycle Auditing**: Every monitoring cycle logged with detailed statistics
 
 ## Architecture
 
@@ -129,6 +137,19 @@ OCR_TEXT_THRESHOLD=50
 
 # Logging
 LOG_LEVEL=INFO
+
+# Scheduling (new workflow)
+SCHEDULER_ENABLED=true
+DEFAULT_SCHEDULE_TIME=02:00
+DEFAULT_TIMEZONE=UTC
+
+# Download Settings
+DOWNLOAD_FILENAME_MAX_LENGTH=200
+
+# Bulk Upload Settings
+BULK_UPLOAD_MAX_SIZE_MB=10
+BULK_UPLOAD_MAX_URLS=1000
+BULK_UPLOAD_VALIDATE_URLS=true
 ```
 
 ### 4. Initialize Database
@@ -138,6 +159,27 @@ python cli.py init
 ```
 
 ## Usage
+
+### Quick Start
+
+See [QUICK_START.md](QUICK_START.md) for a complete getting started guide.
+
+### Web UI (Recommended)
+
+```bash
+# Start the web server
+python main.py
+
+# Or with uvicorn directly
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The web UI will be available at: **http://localhost:8000**
+
+**Main Pages:**
+- `/url-management` - Manage monitored URLs
+- `/change-review` - Review and approve changes
+- `/audit` - View monitoring cycle history and metrics
 
 ### CLI (Headless)
 
@@ -152,79 +194,89 @@ python cli.py run --url-id 1
 python cli.py status
 ```
 
-### Web UI
-
-```bash
-# Start the web server
-python main.py
-
-# Or with uvicorn directly
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-The web UI will be available at the configured host and port (default: http://0.0.0.0:8000).
-
 ### API Endpoints
 
+**Pages:**
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Dashboard (HTML) |
-| GET | `/url/{id}` | URL detail page (HTML) |
-| GET | `/changes` | Recent changes page (HTML) |
+| GET | `/url-management` | URL Management page |
+| GET | `/change-review` | Change Review page |
+| GET | `/audit` | Audit & Metrics page |
+
+**Schedule Management:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/schedule` | Get scheduler status |
+| PUT | `/api/schedule` | Update schedule config |
+| POST | `/api/monitor/run-now` | Trigger manual cycle |
+
+**URL Management:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/urls` | List all monitored URLs |
 | POST | `/api/urls` | Create new monitored URL |
-| GET | `/api/urls/{id}` | Get URL details |
+| PUT | `/api/urls/{id}` | Update monitored URL |
 | DELETE | `/api/urls/{id}` | Delete URL and versions |
-| GET | `/api/urls/{id}/versions` | List versions |
-| GET | `/api/urls/{id}/versions/{vid}/pdf` | Download PDF |
-| GET | `/api/urls/{id}/versions/{vid}/text` | Get extracted text |
-| GET | `/api/changes` | List recent changes |
-| POST | `/api/monitor/run` | Trigger monitoring cycle |
-| GET | `/api/status` | System status |
+| POST | `/api/urls/bulk-upload` | Bulk upload from CSV/TXT |
+| GET | `/api/urls/upload-template` | Download CSV template |
 
-## Scheduled Monitoring
+**Change Management:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/changes-full` | List changes with full details |
+| GET | `/api/changes/{id}/download` | Download change PDF |
+| POST | `/api/changes/{id}/approve` | Approve change |
+| POST | `/api/changes/{id}/intervention` | Record manual intervention |
 
-### Using Cron
+**Audit & Metrics:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/audit/cycles` | List monitoring cycles |
+| GET | `/api/audit/cycles/{id}` | Get cycle details |
+| GET | `/api/audit/cycles/{id}/results` | Get URL results for cycle |
+| GET | `/api/audit/stats` | Get overall statistics |
+| GET | `/api/audit/trends` | Get trend data |
+
+## Automated Scheduling
+
+The application includes a built-in scheduler using APScheduler. Configure via the web UI or API.
+
+### Built-in Scheduler (Recommended)
+
+1. Start the web application: `python main.py`
+2. Navigate to **URL Management** page
+3. Click **Configure** next to the schedule indicator
+4. Choose schedule type:
+   - **Daily**: Run at a specific time (default: 02:00)
+   - **Weekly**: Select days and time
+   - **Custom**: Use cron expression (e.g., `0 */6 * * *`)
+5. Save settings
+
+The scheduler runs automatically when the application is running.
+
+### Environment Configuration
+
+```env
+# Enable/disable scheduler (default: true)
+SCHEDULER_ENABLED=true
+
+# Default schedule time (HH:MM)
+DEFAULT_SCHEDULE_TIME=02:00
+
+# Timezone for scheduling
+DEFAULT_TIMEZONE=UTC
+```
+
+### External Scheduling (Alternative)
+
+If you prefer external scheduling, disable the built-in scheduler and use cron:
 
 ```bash
-# Edit crontab
-crontab -e
+# Disable built-in scheduler in .env
+SCHEDULER_ENABLED=false
 
-# Run every 6 hours
+# Add to crontab
 0 */6 * * * cd /path/to/URL_monitor_demo && /path/to/venv/bin/python cli.py run >> /var/log/pdf-monitor.log 2>&1
-```
-
-### Using systemd Timer
-
-Create `/etc/systemd/system/pdf-monitor.service`:
-```ini
-[Unit]
-Description=PDF Monitor
-
-[Service]
-Type=oneshot
-WorkingDirectory=/path/to/URL_monitor_demo
-ExecStart=/path/to/venv/bin/python cli.py run
-User=your-user
-```
-
-Create `/etc/systemd/system/pdf-monitor.timer`:
-```ini
-[Unit]
-Description=Run PDF Monitor every 6 hours
-
-[Timer]
-OnCalendar=*-*-* 00/6:00:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable:
-```bash
-sudo systemctl enable pdf-monitor.timer
-sudo systemctl start pdf-monitor.timer
 ```
 
 ## Disabling the Frontend

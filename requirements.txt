@@ -7,6 +7,9 @@ python-multipart>=0.0.6
 # Database
 sqlalchemy>=2.0.0
 
+# Scheduling
+APScheduler>=3.10.4
+
 # HTTP client
 httpx>=0.24.0
 requests>=2.31.0
@@ -38,9 +41,14 @@ flask>=3.0.0
 # Excel file parsing (for importing URLs from XLS)
 xlrd>=2.0.0
 
+<<<<<<< Updated upstream
 #PDF Similarity Searcher Module
 pydantic==2.10.3
 pydantic-settings==2.6.1
 beautifulsoup4==4.12.3
 pypdf==4.0.0
 scikit-learn==1.4.0
+=======
+# Testing
+pytest>=7.4.0
+>>>>>>> Stashed changes

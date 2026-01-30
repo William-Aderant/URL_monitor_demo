@@ -530,11 +530,11 @@
                 PDF Monitor
             </a>
             <nav>
-                <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="/triage" class="{% if request.url.path == '/triage' %}active{% endif %}">Triage</a>
-                <a href="/changes" class="{% if request.url.path == '/changes' %}active{% endif %}">Changes</a>
-                <a href="/metrics" class="{% if request.url.path == '/metrics' %}active{% endif %}">Metrics</a>
-                <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}">Search</a>
+                <a href="/url-management" class="{% if request.url.path == '/url-management' %}active{% endif %}">URL Management</a>
+                <a href="/change-review" class="{% if request.url.path == '/change-review' %}active{% endif %}">Change Review</a>
+                <a href="/audit" class="{% if request.url.path == '/audit' %}active{% endif %}">Audit</a>
+                <a href="/" class="{% if request.url.path == '/' %}active{% endif %}" style="opacity: 0.7; font-size: 0.85rem;">Dashboard</a>
+                <a href="/search" class="{% if request.url.path == '/search' %}active{% endif %}" style="opacity: 0.7; font-size: 0.85rem;">Search</a>
             </nav>
             <div class="header-actions">
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">

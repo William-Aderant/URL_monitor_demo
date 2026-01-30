@@ -41,7 +41,7 @@ logger = structlog.get_logger()
 
 from config import settings
 from db.database import get_db, init_db, SessionLocal
-from db.models import MonitoredURL, PDFVersion, ChangeLog
+from db.models import MonitoredURL, PDFVersion, ChangeLog, MonitoringCycle, CycleURLResult
 from db.migrations import run_migrations, seed_sample_urls
 from fetcher.aws_web_scraper import AWSWebScraper
 from fetcher.pdf_downloader import PDFDownloader
@@ -182,14 +182,6 @@ class MonitoringOrchestrator:
             url=monitored_url.url
         )
         
-        # #region agent log
-        import json
-        try:
-            with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"cli.py:process_url","message":"Processing URL","data":{"url_id":monitored_url.id,"url":monitored_url.url,"name":monitored_url.name},"timestamp":int(__import__('time').time()*1000)})+'\n')
-        except: pass
-        # #endregion
-        
         relocated_from_url = None  # Track if form was found at different URL
         
         try:
@@ -233,12 +225,6 @@ class MonitoringOrchestrator:
                     url_id=monitored_url.id,
                     url=pdf_url
                 )
-                # #region agent log
-                try:
-                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"cli.py:process_url","message":"Skipped by header check","data":{"url_id":monitored_url.id,"url":pdf_url},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                except: pass
-                # #endregion
                 print(f"\n  ✓ No change detected (HTTP headers match)")
                 
                 # Update last checked timestamp
@@ -551,13 +537,6 @@ class MonitoringOrchestrator:
                     previous_text
                 )
                 
-                # #region agent log
-                try:
-                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"cli.py:process_url","message":"Change detection result","data":{"url_id":monitored_url.id,"changed":change_result.changed,"change_type":change_result.change_type,"pdf_hash_changed":change_result.pdf_hash_changed,"text_hash_changed":change_result.text_hash_changed},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                except: pass
-                # #endregion
-                
                 # Step 5b: OCR fallback ONLY if change detected AND text insufficient
                 if change_result.changed and extraction_result.needs_ocr:
                     logger.info("Change detected and text insufficient, attempting OCR")
@@ -618,13 +597,6 @@ class MonitoringOrchestrator:
                         similarity=f"{match_result.similarity_score:.1%}",
                         confidence=f"{match_result.confidence:.1%}"
                     )
-                    
-                    # #region agent log
-                    try:
-                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Initial form match result","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":None,"form_numbers_match":previous_version.form_number == match_result.form_number_new if match_result.form_number_new else False,"current_change_type":change_result.change_type},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                    except: pass
-                    # #endregion
                 
                 # Step 6: Store version if changed, first version, or relocated
                 # Only create a version if:
@@ -646,12 +618,6 @@ class MonitoringOrchestrator:
                         "Skipping version creation for format-only change (auto-dismiss enabled)",
                         url_id=monitored_url.id
                     )
-                    # #region agent log
-                    try:
-                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"cli.py:process_url","message":"Format-only auto-dismissed","data":{"url_id":monitored_url.id,"auto_dismiss_enabled":settings.AUTO_DISMISS_FORMAT_ONLY},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                    except: pass
-                    # #endregion
                 
                 if should_create_version:
                     new_version = self.version_manager.create_version(
@@ -712,13 +678,6 @@ class MonitoringOrchestrator:
                                     new_title=title_result.formatted_title
                                 )
                                 
-                                # #region agent log
-                                try:
-                                    with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                                        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Form match after title extraction","data":{"url_id":monitored_url.id,"match_type":match_result.match_type.value,"title_changed":match_result.title_old != match_result.title_new,"old_title":previous_version.formatted_title,"new_title":title_result.formatted_title,"form_numbers_match":previous_version.form_number == title_result.form_number},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                                except: pass
-                                # #endregion
-                                
                                 # Fix: Update change_type to "title_changed" if form numbers match and only title changed
                                 if (match_result.match_type.value == "similarity_match" and 
                                     previous_version.form_number == title_result.form_number and
@@ -730,12 +689,6 @@ class MonitoringOrchestrator:
                                         old_title=previous_version.formatted_title,
                                         new_title=title_result.formatted_title
                                     )
-                                    # #region agent log
-                                    try:
-                                        with open('/Users/william.holden/Documents/GitHub/URL_monitor_demo/.cursor/debug.log', 'a') as f:
-                                            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"cli.py:process_url","message":"Change type updated to title_changed","data":{"url_id":monitored_url.id,"old_change_type":"text_changed","new_change_type":"title_changed"},"timestamp":int(__import__('time').time()*1000)})+'\n')
-                                    except: pass
-                                    # #endregion
                         else:
                             logger.warning(
                                 "Title extraction failed",
@@ -1042,134 +995,320 @@ class MonitoringOrchestrator:
             )
             return False
     
-    def run_cycle(self, db, url_id: Optional[int] = None, max_workers: Optional[int] = None) -> dict:
+    def run_cycle(self, db=None, url_id: Optional[int] = None, max_workers: Optional[int] = None, cycle_id: Optional[int] = None) -> dict:
         """
         Run a monitoring cycle with optional parallel processing.
         
         Args:
-            db: Database session (used for querying, each thread gets its own session)
+            db: Database session (used for querying, each thread gets its own session). If None, creates a new session.
             url_id: Optional specific URL ID to process
             max_workers: Number of parallel workers (default: min(10, number of URLs))
+            cycle_id: Optional monitoring cycle ID for tracking (if not provided, will be created)
             
         Returns:
-            Dictionary with results summary
+            Dictionary with results summary compatible with scheduler tracking
         """
-        logger.info("Starting monitoring cycle", url_id=url_id)
+        # Create db session if not provided
+        owns_db = db is None
+        if owns_db:
+            db = SessionLocal()
         
-        # Get URLs to process
-        query = db.query(MonitoredURL).filter(MonitoredURL.enabled == True)
-        if url_id:
-            query = query.filter(MonitoredURL.id == url_id)
-        
-        urls = query.all()
-        
-        if not urls:
-            logger.warning("No URLs to process")
-            return {"processed": 0, "success": 0, "failed": 0}
-        
-        # Determine number of workers (default to config setting or number of URLs, whichever is smaller)
-        if max_workers is None:
-            max_workers = min(settings.MAX_WORKERS, len(urls))
-        
-        results = {
-            "processed": len(urls),
-            "success": 0,
-            "failed": 0,
-            "details": []
-        }
-        
-        # Helper function to process a single URL with its own database session
-        def process_url_with_session(url_data):
-            """Process a URL with a fresh database session for thread safety."""
-            url_id, url_name, url_url = url_data
-            thread_db = SessionLocal()
-            try:
-                # Re-fetch the URL in this thread's session
-                url = thread_db.query(MonitoredURL).filter(MonitoredURL.id == url_id).first()
-                if not url:
-                    logger.warning("URL not found in thread session", url_id=url_id)
-                    return {"url_id": url_id, "name": url_name, "success": False}
-                
-                success = self.process_url(thread_db, url)
-                thread_db.commit()
-                
-                return {"url_id": url_id, "name": url_name, "success": success}
-            except Exception as e:
-                logger.error(
-                    "Error processing URL in thread",
-                    url_id=url_id,
-                    error=str(e),
-                    exc_info=True
-                )
-                thread_db.rollback()
-                return {"url_id": url_id, "name": url_name, "success": False}
-            finally:
-                thread_db.close()
-        
-        # Process URLs in parallel if we have multiple URLs and max_workers > 1
-        if len(urls) > 1 and max_workers > 1:
-            logger.info(
-                "Processing URLs in parallel",
-                total=len(urls),
-                workers=max_workers
-            )
+        try:
+            logger.info("Starting monitoring cycle", url_id=url_id, cycle_id=cycle_id)
             
-            # Prepare URL data for parallel processing
-            url_data_list = [(url.id, url.name, url.url) for url in urls]
+            # Get URLs to process
+            query = db.query(MonitoredURL).filter(MonitoredURL.enabled == True)
+            if url_id:
+                query = query.filter(MonitoredURL.id == url_id)
             
-            # Process in parallel
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_url = {
-                    executor.submit(process_url_with_session, url_data): url_data[0]
-                    for url_data in url_data_list
+            urls = query.all()
+            
+            if not urls:
+                logger.warning("No URLs to process")
+                return {
+                    "total": 0, "successful": 0, "failed": 0, "changes": 0, 
+                    "skipped": 0, "errors": 0, "error_log": None
+                }
+            
+            # Determine number of workers (default to config setting or number of URLs, whichever is smaller)
+            if max_workers is None:
+                max_workers = min(settings.MAX_WORKERS, len(urls))
+            
+            results = {
+                "total": len(urls),
+                "successful": 0,
+                "failed": 0,
+                "changes": 0,
+                "skipped": 0,
+                "errors": 0,
+                "error_log": "",
+                "details": []
+            }
+            
+            # Helper function to process a single URL with its own database session
+            def process_url_with_session(url_data):
+                """Process a URL with a fresh database session for thread safety."""
+                url_id_inner, url_name, url_url = url_data
+                thread_db = SessionLocal()
+                start_time = datetime.utcnow()
+                result_detail = {
+                    "url_id": url_id_inner, 
+                    "name": url_name, 
+                    "success": False,
+                    "error": None,
+                    "change_detected": False,
+                    "change_log_id": None
                 }
                 
-                for future in as_completed(future_to_url):
-                    url_id_key = future_to_url[future]
+                try:
+                    # Re-fetch the URL in this thread's session
+                    url = thread_db.query(MonitoredURL).filter(MonitoredURL.id == url_id_inner).first()
+                    if not url:
+                        logger.warning("URL not found in thread session", url_id=url_id_inner)
+                        result_detail["error"] = "URL not found"
+                        return result_detail
+                    
+                    # Check for recent changes before processing to track change detection
+                    changes_before = thread_db.query(ChangeLog).filter(
+                        ChangeLog.monitored_url_id == url_id_inner
+                    ).count()
+                    
+                    success = self.process_url(thread_db, url)
+                    thread_db.commit()
+                    
+                    # Check for new changes after processing
+                    changes_after = thread_db.query(ChangeLog).filter(
+                        ChangeLog.monitored_url_id == url_id_inner
+                    ).count()
+                    
+                    result_detail["success"] = success
+                    if changes_after > changes_before:
+                        result_detail["change_detected"] = True
+                        # Get the latest change log ID
+                        latest_change = thread_db.query(ChangeLog).filter(
+                            ChangeLog.monitored_url_id == url_id_inner
+                        ).order_by(ChangeLog.id.desc()).first()
+                        if latest_change:
+                            result_detail["change_log_id"] = latest_change.id
+                    
+                    # Track URL result in the cycle if cycle_id provided
+                    if cycle_id:
+                        end_time = datetime.utcnow()
+                        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+                        
+                        url_result = CycleURLResult(
+                            cycle_id=cycle_id,
+                            monitored_url_id=url_id_inner,
+                            status="success" if success else "failed",
+                            started_at=start_time,
+                            completed_at=end_time,
+                            duration_ms=duration_ms,
+                            change_detected=result_detail["change_detected"],
+                            change_log_id=result_detail["change_log_id"]
+                        )
+                        thread_db.add(url_result)
+                        thread_db.commit()
+                    
+                    return result_detail
+                    
+                except Exception as e:
+                    logger.error(
+                        "Error processing URL in thread",
+                        url_id=url_id_inner,
+                        error=str(e),
+                        exc_info=True
+                    )
+                    thread_db.rollback()
+                    result_detail["error"] = str(e)
+                    
+                    # Track failed URL result in the cycle
+                    if cycle_id:
+                        try:
+                            end_time = datetime.utcnow()
+                            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+                            
+                            url_result = CycleURLResult(
+                                cycle_id=cycle_id,
+                                monitored_url_id=url_id_inner,
+                                status="failed",
+                                error_message=str(e),
+                                started_at=start_time,
+                                completed_at=end_time,
+                                duration_ms=duration_ms,
+                                change_detected=False
+                            )
+                            thread_db.add(url_result)
+                            thread_db.commit()
+                        except Exception:
+                            pass  # Don't fail on tracking error
+                    
+                    return result_detail
+                finally:
+                    thread_db.close()
+            
+            # Process URLs in parallel if we have multiple URLs and max_workers > 1
+            if len(urls) > 1 and max_workers > 1:
+                logger.info(
+                    "Processing URLs in parallel",
+                    total=len(urls),
+                    workers=max_workers
+                )
+                
+                # Prepare URL data for parallel processing
+                url_data_list = [(url.id, url.name, url.url) for url in urls]
+                
+                # Process in parallel
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_to_url = {
+                        executor.submit(process_url_with_session, url_data): url_data[0]
+                        for url_data in url_data_list
+                    }
+                    
+                    for future in as_completed(future_to_url):
+                        url_id_key = future_to_url[future]
+                        try:
+                            detail = future.result()
+                            if detail["success"]:
+                                results["successful"] += 1
+                            else:
+                                results["failed"] += 1
+                            
+                            if detail.get("change_detected"):
+                                results["changes"] += 1
+                            
+                            if detail.get("error"):
+                                results["errors"] += 1
+                                results["error_log"] += f"URL {url_id_key}: {detail['error']}\n"
+                            
+                            results["details"].append(detail)
+                        except Exception as e:
+                            logger.error(
+                                "Error getting result from thread",
+                                url_id=url_id_key,
+                                error=str(e)
+                            )
+                            results["failed"] += 1
+                            results["errors"] += 1
+                            results["error_log"] += f"URL {url_id_key}: {str(e)}\n"
+                            results["details"].append({
+                                "url_id": url_id_key,
+                                "name": "Unknown",
+                                "success": False,
+                                "error": str(e)
+                            })
+            else:
+                # Process sequentially (single URL or max_workers = 1)
+                logger.info("Processing URLs sequentially", total=len(urls))
+                for url in urls:
+                    start_time = datetime.utcnow()
+                    
+                    # Check for recent changes before processing
+                    changes_before = db.query(ChangeLog).filter(
+                        ChangeLog.monitored_url_id == url.id
+                    ).count()
+                    
                     try:
-                        detail = future.result()
-                        if detail["success"]:
-                            results["success"] += 1
+                        success = self.process_url(db, url)
+                        
+                        # Check for new changes after processing
+                        changes_after = db.query(ChangeLog).filter(
+                            ChangeLog.monitored_url_id == url.id
+                        ).count()
+                        
+                        change_detected = changes_after > changes_before
+                        change_log_id = None
+                        
+                        if change_detected:
+                            results["changes"] += 1
+                            latest_change = db.query(ChangeLog).filter(
+                                ChangeLog.monitored_url_id == url.id
+                            ).order_by(ChangeLog.id.desc()).first()
+                            if latest_change:
+                                change_log_id = latest_change.id
+                        
+                        if success:
+                            results["successful"] += 1
                         else:
                             results["failed"] += 1
-                        results["details"].append(detail)
+                        
+                        # Track URL result in the cycle if cycle_id provided
+                        if cycle_id:
+                            end_time = datetime.utcnow()
+                            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+                            
+                            url_result = CycleURLResult(
+                                cycle_id=cycle_id,
+                                monitored_url_id=url.id,
+                                status="success" if success else "failed",
+                                started_at=start_time,
+                                completed_at=end_time,
+                                duration_ms=duration_ms,
+                                change_detected=change_detected,
+                                change_log_id=change_log_id
+                            )
+                            db.add(url_result)
+                            db.commit()
+                        
+                        results["details"].append({
+                            "url_id": url.id,
+                            "name": url.name,
+                            "success": success,
+                            "change_detected": change_detected
+                        })
+                        
                     except Exception as e:
                         logger.error(
-                            "Error getting result from thread",
-                            url_id=url_id_key,
-                            error=str(e)
+                            "Error processing URL",
+                            url_id=url.id,
+                            error=str(e),
+                            exc_info=True
                         )
                         results["failed"] += 1
+                        results["errors"] += 1
+                        results["error_log"] += f"URL {url.id}: {str(e)}\n"
+                        
+                        # Track failed URL result in the cycle
+                        if cycle_id:
+                            end_time = datetime.utcnow()
+                            duration_ms = int((end_time - start_time).total_seconds() * 1000)
+                            
+                            url_result = CycleURLResult(
+                                cycle_id=cycle_id,
+                                monitored_url_id=url.id,
+                                status="failed",
+                                error_message=str(e),
+                                started_at=start_time,
+                                completed_at=end_time,
+                                duration_ms=duration_ms,
+                                change_detected=False
+                            )
+                            db.add(url_result)
+                            db.commit()
+                        
                         results["details"].append({
-                            "url_id": url_id_key,
-                            "name": "Unknown",
-                            "success": False
+                            "url_id": url.id,
+                            "name": url.name,
+                            "success": False,
+                            "error": str(e)
                         })
-        else:
-            # Process sequentially (single URL or max_workers = 1)
-            logger.info("Processing URLs sequentially", total=len(urls))
-            for url in urls:
-                success = self.process_url(db, url)
-                
-                if success:
-                    results["success"] += 1
-                else:
-                    results["failed"] += 1
-                
-                results["details"].append({
-                    "url_id": url.id,
-                    "name": url.name,
-                    "success": success
-                })
-        
-        logger.info(
-            "Monitoring cycle complete",
-            processed=results["processed"],
-            success=results["success"],
-            failed=results["failed"]
-        )
-        
-        return results
+            
+            # Clean up error_log if empty
+            if not results["error_log"]:
+                results["error_log"] = None
+            
+            logger.info(
+                "Monitoring cycle complete",
+                total=results["total"],
+                successful=results["successful"],
+                failed=results["failed"],
+                changes=results["changes"]
+            )
+            
+            return results
+            
+        finally:
+            if owns_db:
+                db.close()
 
 
 def cmd_init():
@@ -1207,19 +1346,46 @@ def cmd_run(url_id: Optional[int] = None, max_workers: Optional[int] = None):
     
     db = SessionLocal()
     try:
+        # Create a monitoring cycle record for tracking
+        cycle = MonitoringCycle(
+            started_at=datetime.utcnow(),
+            status="running",
+            triggered_by="cli"
+        )
+        db.add(cycle)
+        db.commit()
+        db.refresh(cycle)
+        
         orchestrator = MonitoringOrchestrator()
-        results = orchestrator.run_cycle(db, url_id, max_workers=max_workers)
+        results = orchestrator.run_cycle(db, url_id, max_workers=max_workers, cycle_id=cycle.id)
+        
+        # Update cycle with results
+        cycle.completed_at = datetime.utcnow()
+        cycle.duration_seconds = (cycle.completed_at - cycle.started_at).total_seconds()
+        cycle.status = "completed"
+        cycle.total_urls_checked = results.get("total", 0)
+        cycle.successful_checks = results.get("successful", 0)
+        cycle.failed_checks = results.get("failed", 0)
+        cycle.changes_detected = results.get("changes", 0)
+        cycle.error_count = results.get("errors", 0)
+        if results.get("error_log"):
+            cycle.error_log = results["error_log"]
+        db.commit()
         
         print("\n=== Monitoring Results ===")
-        print(f"Processed: {results['processed']}")
-        print(f"Success: {results['success']}")
+        print(f"Cycle ID: {cycle.id}")
+        print(f"Duration: {cycle.duration_seconds:.1f}s")
+        print(f"Processed: {results['total']}")
+        print(f"Success: {results['successful']}")
         print(f"Failed: {results['failed']}")
+        print(f"Changes Detected: {results['changes']}")
         
         if results.get("details"):
             print("\nDetails:")
             for detail in results["details"]:
                 status = "✓" if detail["success"] else "✗"
-                print(f"  {status} [{detail['url_id']}] {detail['name']}")
+                change_indicator = " 📋" if detail.get("change_detected") else ""
+                print(f"  {status} [{detail['url_id']}] {detail['name']}{change_indicator}")
         
     finally:
         db.close()

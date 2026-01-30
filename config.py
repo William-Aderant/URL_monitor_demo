@@ -122,6 +122,40 @@ class Settings:
     # Set to 1 to disable parallel processing
     MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "100"))
     
+    # ==========================================================================
+    # Scheduling Configuration
+    # Automated monitoring cycle settings
+    # ==========================================================================
+    
+    # Enable/disable the automatic scheduler
+    SCHEDULER_ENABLED: bool = os.getenv("SCHEDULER_ENABLED", "True").lower() == "true"
+    # Default time for daily schedule (HH:MM format in 24-hour time)
+    DEFAULT_SCHEDULE_TIME: str = os.getenv("DEFAULT_SCHEDULE_TIME", "02:00")
+    # Default timezone for scheduling
+    DEFAULT_TIMEZONE: str = os.getenv("DEFAULT_TIMEZONE", "UTC")
+    
+    # ==========================================================================
+    # Download Configuration
+    # PDF download and filename settings
+    # ==========================================================================
+    
+    # Maximum filename length for downloaded PDFs
+    DOWNLOAD_FILENAME_MAX_LENGTH: int = int(os.getenv("DOWNLOAD_FILENAME_MAX_LENGTH", "200"))
+    # Characters to replace in filenames (mapped to underscore)
+    DOWNLOAD_FILENAME_INVALID_CHARS: str = os.getenv("DOWNLOAD_FILENAME_INVALID_CHARS", r'<>:"/\|?*')
+    
+    # ==========================================================================
+    # Bulk Upload Configuration
+    # CSV/TXT file import settings
+    # ==========================================================================
+    
+    # Maximum file size for bulk uploads (in MB)
+    BULK_UPLOAD_MAX_SIZE_MB: int = int(os.getenv("BULK_UPLOAD_MAX_SIZE_MB", "10"))
+    # Whether to validate URL accessibility during bulk upload
+    BULK_UPLOAD_VALIDATE_URLS: bool = os.getenv("BULK_UPLOAD_VALIDATE_URLS", "True").lower() == "true"
+    # Maximum URLs per bulk upload
+    BULK_UPLOAD_MAX_URLS: int = int(os.getenv("BULK_UPLOAD_MAX_URLS", "1000"))
+    
     @classmethod
     def ensure_directories(cls) -> None:
         """Create required directories if they don't exist."""

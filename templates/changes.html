@@ -39,9 +39,17 @@
                         <div style="color: var(--text-primary);">
                             Form is inaccessible. Relocation search could not find the form at a new location.
                         </div>
-                        {% if item.change.diff_summary %}
-                        <div style="color: var(--text-secondary); margin-top: 4px; font-size: 0.7rem;">
-                            {{ item.change.diff_summary }}
+                        {% if item.relocation_near_misses and item.relocation_near_misses.candidates %}
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(244, 33, 46, 0.3);">
+                            <div style="color: var(--text-primary); font-weight: 600; margin-bottom: 4px;">🔗 Recommended links to explore (potential new location)</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 0.7rem;">
+                                {% for c in item.relocation_near_misses.candidates %}
+                                <li style="margin-bottom: 4px;">
+                                    <a href="{{ c.pdf_url }}" target="_blank" rel="noopener" style="color: var(--accent); word-break: break-all;">{{ c.pdf_url }}</a>
+                                    {% if c.similarity_score is defined %}<span style="color: var(--text-secondary);"> ({{ "%.1f"|format(c.similarity_score) }}% similar)</span>{% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
                         </div>
                         {% endif %}
                     </div>

@@ -76,6 +76,22 @@ def highlight_search_terms(text: str, query: str) -> str:
     return highlighted
 
 
+def load_relocation_near_misses(url_id: int) -> Optional[dict]:
+    """
+    Load relocation near-misses for a monitored URL (404, relocation failed).
+    Returns the JSON payload from data/relocation_near_misses/url_{id}.json if present.
+    """
+    import json
+    rel_path = Path("data") / "relocation_near_misses" / f"url_{url_id}.json"
+    if not rel_path.exists():
+        return None
+    try:
+        with open(rel_path, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 # Initialize services
 file_store = FileStore()
 version_manager = VersionManager(file_store)
@@ -158,12 +174,18 @@ async def dashboard(
         # Build url_data list
         url_data = []
         for url in urls:
-            url_data.append({
+            recent_change = recent_change_map.get(url.id)
+            item = {
                 "url": url,
                 "version_count": version_count_map.get(url.id, 0),
                 "latest_version": latest_version_map.get(url.id),
-                "recent_change": recent_change_map.get(url.id)
-            })
+                "recent_change": recent_change
+            }
+            if recent_change and recent_change.change_type == "relocation_failed":
+                item["relocation_near_misses"] = load_relocation_near_misses(url.id)
+            else:
+                item["relocation_near_misses"] = None
+            url_data.append(item)
     
     # Get state counts for tabs
     state_counts = db.query(
@@ -236,7 +258,8 @@ async def url_detail(request: Request, url_id: int, db: Session = Depends(get_db
     
     versions = version_manager.get_version_history(db, url_id, limit=50)
     changes = version_manager.get_url_changes(db, url_id, limit=20)
-    
+    relocation_near_misses = load_relocation_near_misses(url_id)
+
     return templates.TemplateResponse(
         "url_detail.html",
         {
@@ -244,6 +267,7 @@ async def url_detail(request: Request, url_id: int, db: Session = Depends(get_db
             "url": url,
             "versions": versions,
             "changes": changes,
+            "relocation_near_misses": relocation_near_misses,
             "now": datetime.utcnow()
         }
     )
@@ -265,12 +289,17 @@ async def changes_page(request: Request, db: Session = Depends(get_db)):
         if url and not url.enabled:
             continue
         
-        change_data.append({
+        item = {
             "change": change,
             "url_name": url.name if url else "Unknown",
             "url_url": url.url if url else ""
-        })
-    
+        }
+        if change.change_type == "relocation_failed":
+            item["relocation_near_misses"] = load_relocation_near_misses(change.monitored_url_id)
+        else:
+            item["relocation_near_misses"] = None
+        change_data.append(item)
+
     return templates.TemplateResponse(
         "changes.html",
         {
@@ -324,12 +353,17 @@ async def triage_dashboard(
             MonitoredURL.id == change.monitored_url_id
         ).first()
         
-        change_data.append({
+        item = {
             "change": change,
             "url_name": url.name if url else "Unknown",
             "url_url": url.url if url else "",
             "priority": priority_map.get(change.recommended_action, 3)
-        })
+        }
+        if change.change_type == "relocation_failed":
+            item["relocation_near_misses"] = load_relocation_near_misses(change.monitored_url_id)
+        else:
+            item["relocation_near_misses"] = None
+        change_data.append(item)
     
     # Sort by priority
     change_data.sort(key=lambda x: (x["priority"], x["change"].detected_at), reverse=False)

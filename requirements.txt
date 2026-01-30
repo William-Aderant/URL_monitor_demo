@@ -37,3 +37,10 @@ flask>=3.0.0
 
 # Excel file parsing (for importing URLs from XLS)
 xlrd>=2.0.0
+
+#PDF Similarity Searcher Module
+pydantic==2.10.3
+pydantic-settings==2.6.1
+beautifulsoup4==4.12.3
+pypdf==4.0.0
+scikit-learn==1.4.0
